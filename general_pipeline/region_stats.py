@@ -1,6 +1,6 @@
 # python 2.7.14
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg')  # for plotting on cluster
 
 from matplotlib import pyplot as plt
 import argparse

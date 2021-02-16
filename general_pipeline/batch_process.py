@@ -1,3 +1,7 @@
+# python 3.6.5
+'''Set up job scripts for batch processing.
+'''
+
 import argparse
 import os
 import subprocess
@@ -6,7 +10,6 @@ import subprocess
 parser = argparse.ArgumentParser()
 parser.add_argument('file_table', type=str, nargs=1, help='Path to the .txt file listing all CZI images and arguments.')
 parser.add_argument('outdir', type=str, nargs=1, help='Name of the output directory.')
-parser.add_argument('--run', action='store_true', help='Start SLURM processes.')
 
 args = vars(parser.parse_args())
 p_ftable = args['file_table'][0]
@@ -48,9 +51,3 @@ for i, line in enumerate(file_list):
 for name, p in sh_paths:
     cmd = 'chmod +x ' + p
     subprocess.Popen(cmd, shell=True)
-
-if should_run:
-    # slurmify the bash scripts and queue them in slurm
-    for name, p in sh_paths:
-        cmd = 'slurmify-run ' + p + ' -n ' + name + ' -m 24 -t 1 --burst'
-        subprocess.Popen(cmd, shell=True)
