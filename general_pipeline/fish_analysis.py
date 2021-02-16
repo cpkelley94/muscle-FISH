@@ -1,16 +1,15 @@
-# python 3.6.5, HiPerGator
+# python 3.6.5
 """
 Goals:
-
-1. transcript density per volume of fiber
-2. ratio of nuclear to cytoplasmic transcripts
+1. open CZI image and separate channels
+2. segment muscle fiber and nuclei by automated threshold selection
+3. detect HCR FISH spots by Laplacian of Gaussian
+4. calculate transcript density within nuclear, perinuclear, and cytoplasmic compartments
 """
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg')  # for plotting on cluster
 
 from copy import deepcopy
-# from czifile import CziFile
-# from itertools import count
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from skimage import feature, exposure, filters, morphology
@@ -29,6 +28,8 @@ import muscle_fish as mf
 #--  FUNCTION DECLARATIONS  ---------------------------------------------------#
 
 def update_z(frame):
+    '''Frame updater for FuncAnimation.
+    '''
     im_xy.set_data(img_rna[:,:,frame])
     colors = []
     for spot in spots_masked:
@@ -38,6 +39,8 @@ def update_z(frame):
     return im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
 
 def update_z_edge(frame):
+    '''Frame updater for FuncAnimation.
+    '''
     im_xy.set_data(img_rna[:,:,frame])
     colors = []
     for spot in spots_masked:
@@ -47,6 +50,8 @@ def update_z_edge(frame):
     return im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
 
 def update_z_compartments(frame):
+    '''Frame updater for FuncAnimation.
+    '''
     im_xy.set_data(img_rna[:,:,frame])
     colors_nuc = []
     colors_cyt = []
@@ -195,12 +200,12 @@ img_rna_corr = mf.fix_bleaching(img_rna, mask=img_fiber_only, draw=False, imgpre
 
 print('Finding FISH spots...')
 spots_masked, spot_data = mf.find_spots_snrfilter(img_rna_corr, sigma=2, snr=t_snr, t_spot=0.025, mask=img_fiber_only, imgprefix=img_name)
+print(str(spots_masked.shape[0]) + ' spots detected within fiber.')
 
+# write spot intensities to file
 with open(img_name + '_spot_data_intensities.csv', 'w') as spot_file:
     writer = csv.writer(spot_file)
     writer.writerows(spot_data)
-
-print(str(spots_masked.shape[0]) + ' spots detected within fiber.')
 
 # animate spot detection
 if should_plot:
@@ -239,7 +244,8 @@ for spot in spots_masked:
     elif region_cyt[spot_pos]:
         spots_cyt.append(spot)
     else:
-        # reason for this is unknown
+        # spot was not assigned to a compartment
+        # we have not observed this to occur
         print('warning: spot at position ' + str(spot_pos) + ' not assigned to a compartment.')
 
 spots_by_region = {}
