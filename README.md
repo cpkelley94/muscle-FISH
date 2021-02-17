@@ -8,4 +8,4 @@ All code used in this study for image analysis and RNA transport simulation is w
 
 Example images and animations derived from these analyses are presented in `examples`.
 
-**Navigation:** [General Pipeline]("general_pipeline")
+**Navigation:** [General Pipeline](general_pipeline)
