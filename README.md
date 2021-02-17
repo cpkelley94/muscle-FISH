@@ -2,4 +2,8 @@
 
 <img src="img/01-fiber.png" alt="01-fiber">
 
-Microscopy image analysis and Markov chain simulation to study RNA localization in skeletal muscle fibers. The manuscript describing this work is currently in submission at _Cell_ and will be posted on bioRxiv. Example images and animations derived from these analyses are presented in `examples`.
+We used hybridization chain reaction fluorescence _in situ_ hybridization (HCR FISH) to study RNA localization in _ex vivo_ skeletal muscle fibers. We discovered that mRNAs from many genes are distributed nearly uniformly across muscle fibers, despite our findings that diffusion of RNA away from nuclei is severely restricted in muscle. By automated image analysis and stochastic simulation, we discover that frequent directed transport of RNA along microtubules is required to disperse RNAs across the fiber.
+
+All code used in this study for image analysis and RNA transport simulation is written in Python.
+
+Example images and animations derived from these analyses are presented in `examples`.
