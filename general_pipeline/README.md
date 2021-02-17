@@ -24,3 +24,5 @@ The following optional arguments can be provided:
 - `-f`, `--fiber-threshold`: Override threshold value for fiber segmentation
 - `-s`, `--snr`: Override signal-to-noise threshold for spot detection in FISH channel
 - `--plot`: Generate plots, images, and animations 
+
+Batch processing of multiple images via SLURM can be set up using `batch_process.py`.
