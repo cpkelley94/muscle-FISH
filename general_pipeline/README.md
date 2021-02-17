@@ -1,6 +1,6 @@
 # General HCR-FISH analysis pipeline
 
-<img align="right" src="img/01-spot-overlay.gif" alt="01-spot-overlay" width=300>
+<img align="right" src="img/01-spot-overlay.gif" alt="01-spot-overlay" width=300 style='border:1px solid #ffffff'>
 
 ## Description
 This Python image analysis pipeline was developed to analyze confocal fluorescence microscopy images of HCR-FISH in _ex vivo_ skeletal muscle fibers. The pipeline processes images in the CZI and OME-TIFF formats.
