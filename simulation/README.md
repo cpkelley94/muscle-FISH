@@ -37,6 +37,7 @@ where `input-dir` points to the folder containing the masks. Use the following o
 ## Examples
 We simulated the motion of Polr2a mRNAs with different sets of allowed motion states:
 1. **{L} only.** In this configuration, we observe the distribution of RNAs in the cytoplasm if RNAs can move only by diffusion.
+    ![01-low-mobility](img/01-low-mobility.gif)
     <img src="img/01-low-mobility.gif" alt="01-low-mobility" width=500 border="1">
 2. **{L, C, P}.** Here, RNAs can transition between diffusion and directed transport states, according to the transition probabilities calculated from observations in our cell culture model.
     <img src="img/03-L-C-P.gif" alt="03-L-C-P" width=500 border="1">
