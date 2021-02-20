@@ -1,89 +1,20 @@
 # python 3.6.5, HiPerGator
 """
 Goals:
-
-1. transcript density per volume of fiber
-2. ratio of nuclear to cytoplasmic transcripts
-3. distance of cytoplasmic transcripts to nearest nucleus
+1. open CZI image and separate channels
+2. segment muscle fiber and nuclei by automated threshold selection
+3. detect HCR FISH spots by Laplacian of Gaussian
+4. export nuclei and fiber segmentations to .npy files
 """
-import matplotlib
-matplotlib.use('Agg')
 
-from copy import deepcopy
-# from itertools import count
-from matplotlib import pyplot as plt
-from matplotlib.animation import FuncAnimation
-from matplotlib.tri import Triangulation
-from mpl_toolkits import mplot3d
-from numpy.linalg import norm
-from scipy.interpolate import interpn
-from scipy.ndimage.morphology import distance_transform_edt
-from skimage import feature, exposure, filters, morphology, measure
-from xml.etree import ElementTree
 import argparse
 import csv
-import matplotlib.cm as cm
 import numpy as np
 import os
-import scipy.ndimage as ndi
-import trimesh
 
 # custom libraries
 import scope_utils3 as su
 import muscle_fish as mf
-
-
-#--  FUNCTION DECLARATIONS  ---------------------------------------------------#
-
-def count_spots(threshold):
-    return len(feature.blob_log(imgs_rna[chan], 1., 1., num_sigma=1, threshold=threshold))
-
-def update_z(frame):
-    im_xy.set_data(imgs_rna[chan][:,:,frame])
-    colors = []
-    for spot in spots_masked:
-        alpha = su.gauss_1d(frame, 1., spot[2], spot[3])
-        colors.append([1., 0., 0., alpha])
-    spots_xy.set_facecolor(colors)
-    return im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
-
-def update_z_edge(frame):
-    im_xy.set_data(imgs_rna[chan][:,:,frame])
-    colors = []
-    for spot in spots_masked:
-        alpha = su.gauss_1d(frame, 1., spot[2], spot[3])
-        colors.append([1., 0., 0., alpha])
-    spots_xy.set_edgecolor(colors)
-    return im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
-
-def update_z_grassfire(frame):
-    dapi_xy.set_data(img_dapi[:,:,frame])
-    im_xy.set_data(imgs_rna[chan][:,:,frame])
-    colors = spots_xy.get_facecolor()
-    for i, spot in enumerate(spots_xyz):
-        alpha = su.gauss_1d(frame, 1., spot[2]/dims['Z'], 1.)
-        colors[i,3] = alpha
-    spots_xy.set_facecolor(colors)
-    return dapi_xy, im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
-
-def update_z_compartments(frame):
-    im_xy.set_data(imgs_rna[chan][:,:,frame])
-    colors_nuc = []
-    colors_cyt = []
-    colors_peri = []
-    for spot in spots_by_region['nuc']:
-        alpha = su.gauss_1d(frame, 1., spot[2], spot[3])
-        colors_nuc.append([0.3, 0.3, 1., alpha])
-    for spot in spots_by_region['cyt']:
-        alpha = su.gauss_1d(frame, 1., spot[2], spot[3])
-        colors_cyt.append([1., 0.3, 0.3, alpha])
-    for spot in spots_by_region['peri']:
-        alpha = su.gauss_1d(frame, 1., spot[2], spot[3])
-        colors_peri.append([0.3, 1., 0.3, alpha])
-    spots_nuc_xy.set_facecolor(colors_nuc)
-    spots_cyt_xy.set_facecolor(colors_cyt)
-    spots_peri_xy.set_facecolor(colors_peri)
-    return im_xy, spots_nuc_xy, spots_cyt_xy, spots_peri_xy  # this return structure is a requirement for the FuncAnimation() callable
 
 
 #--  COMMAND LINE ARGUMENTS  --------------------------------------------------#
@@ -219,13 +150,7 @@ for chan, gene in enumerate(genes):
     #--  FISH SPOT DETECTION  -------------------------------------------------#
 
     print('Finding FISH spots...')
-    # img_rna_corr = mf.fix_bleaching(imgs_rna[chan], mask=img_fiber_only, draw=True, imgprefix=img_name+'^'+gene)
-    # spots_masked, spot_data = mf.find_spots_snrfilter(img_rna_corr, sigma=2, snr=t_snr[chan], t_spot=0.025, mask=img_fiber_only, imgprefix=img_name)
     spots_masked, spot_data = mf.find_spots_snrfilter(imgs_rna[chan], sigma=2, snr=t_snr[chan], t_spot=0.025, mask=img_fiber_only, imgprefix=img_name)
-
-    # with open(os.path.join(outdir, img_name + '_spot_data_intensities^' + gene + '.csv'), 'w') as spot_file:
-    #     writer = csv.writer(spot_file)
-    #     writer.writerows(spot_data)
 
     print(str(spots_masked.shape[0]) + ' spots detected within fiber.')
     output_table.append([gene, len(spots_masked)])
