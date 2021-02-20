@@ -1,31 +1,28 @@
 # python 3.6.5, HiPerGator
 """
 Goals:
-
-1. transcript density per volume of fiber
-2. ratio of nuclear to cytoplasmic transcripts
-3. distance of cytoplasmic transcripts to nearest nucleus
+1. open CZI image and separate channels
+2. segment muscle fiber and nuclei by automated threshold selection
+3. detect HCR FISH spots by Laplacian of Gaussian
+4. calculate transcript density within nuclear, perinuclear, and cytoplasmic compartments
+5. measure distance of cytoplasmic transcripts to nearest nucleus
+6. measure intranuclear position of nuclear transcripts
 """
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg') # for plotting on cluster
 
-from copy import deepcopy
-# from itertools import count
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.tri import Triangulation
-from mpl_toolkits import mplot3d
 from numpy.linalg import norm
 from scipy.interpolate import interpn
 from scipy.ndimage.morphology import distance_transform_edt
-from skimage import feature, exposure, filters, morphology, measure
-from xml.etree import ElementTree
+from skimage import filters, morphology, measure
 import argparse
 import csv
 import matplotlib.cm as cm
 import numpy as np
 import os
-import scipy.ndimage as ndi
 import trimesh
 
 # custom libraries
@@ -35,10 +32,9 @@ import muscle_fish as mf
 
 #--  FUNCTION DECLARATIONS  ---------------------------------------------------#
 
-def count_spots(threshold):
-    return len(feature.blob_log(imgs_rna[chan], 1., 1., num_sigma=1, threshold=threshold))
-
 def update_z(frame):
+    '''Frame updater for FuncAnimation.
+    '''
     im_xy.set_data(imgs_rna[chan][:,:,frame])
     colors = []
     for spot in spots_masked:
@@ -48,6 +44,8 @@ def update_z(frame):
     return im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
 
 def update_z_edge(frame):
+    '''Frame updater for FuncAnimation.
+    '''
     im_xy.set_data(imgs_rna[chan][:,:,frame])
     colors = []
     for spot in spots_masked:
@@ -57,6 +55,8 @@ def update_z_edge(frame):
     return im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
 
 def update_z_grassfire(frame):
+    '''Frame updater for FuncAnimation.
+    '''
     dapi_xy.set_data(img_dapi[:,:,frame])
     im_xy.set_data(imgs_rna[chan][:,:,frame])
     colors = spots_xy.get_facecolor()
@@ -67,6 +67,8 @@ def update_z_grassfire(frame):
     return dapi_xy, im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
 
 def update_z_compartments(frame):
+    '''Frame updater for FuncAnimation.
+    '''
     im_xy.set_data(imgs_rna[chan][:,:,frame])
     colors_nuc = []
     colors_cyt = []
@@ -235,7 +237,7 @@ for i in range(n_nuc):
     try:
         verts, faces, normals, values = measure.marching_cubes_lewiner(nuc_fade, 0.5, spacing=dims_xyz)
     except ValueError:
-        # mesh generation fails for aberrant small DAPI signals
+        # mesh generation fails for aberrant small DAPI blobs
         # skip this
         nuc_meshes.append(None)
         centroids.append(None)
@@ -245,17 +247,6 @@ for i in range(n_nuc):
     nuc_meshes.append(mesh)
     centroid = np.array(nuc_props[i].centroid)*dims_xyz
     centroids.append(centroid)
-    '''
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    tris = Triangulation(verts[:,0], verts[:,1], faces)
-    ax.plot_trisurf(tris, verts[:,2])
-    ax.set_xlabel('x (um)')
-    ax.set_ylabel('y (um)')
-    ax.set_zlabel('z (um)')
-    plt.savefig('test_nuc_' + str(i) + '.png', dpi=300)
-    plt.close()
-    '''
 
 
 #-- RNA DETECTION AND ANALYSIS  -----------------------------------------------#
@@ -275,13 +266,7 @@ for chan, gene in enumerate(genes):
     #--  FISH SPOT DETECTION  -------------------------------------------------#
 
     print('Finding FISH spots...')
-    # img_rna_corr = mf.fix_bleaching(imgs_rna[chan], mask=img_fiber_only, draw=True, imgprefix=img_name+'^'+gene)
-    # spots_masked, spot_data = mf.find_spots_snrfilter(img_rna_corr, sigma=2, snr=t_snr[chan], t_spot=0.025, mask=img_fiber_only, imgprefix=img_name)
     spots_masked = mf.find_spots(imgs_rna[chan], t_spot=t_spot[chan], mask=img_fiber_only)
-
-    # with open(os.path.join(outdir, img_name + '_spot_data_intensities^' + gene + '.csv'), 'w') as spot_file:
-    #     writer = csv.writer(spot_file)
-    #     writer.writerows(spot_data)
 
     print(str(spots_masked.shape[0]) + ' spots detected within fiber.')
 
@@ -353,7 +338,6 @@ for chan, gene in enumerate(genes):
 
             spots_dist[i] = intranuc_dist - 1
 
-            '''
             # draw nucleus with spot, centroid, and ray casting
             fig = plt.figure()
             ax = plt.axes(projection='3d')
@@ -369,7 +353,6 @@ for chan, gene in enumerate(genes):
             ax.set_zlabel('z (um)')
             plt.savefig('test_spot_' + str(i) + '_nuc_' + str(label) + '.png', dpi=300)
             plt.close()
-            '''
 
     # output spot coordinates distances to file
     out_dist_list = [['x (um)', 'y (um)', 'z (um)', 'd_nuc (um)']]
