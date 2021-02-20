@@ -9,7 +9,7 @@ Goals:
 6. measure intranuclear position of nuclear transcripts
 """
 import matplotlib
-matplotlib.use('Agg') # for plotting on cluster
+matplotlib.use('Agg')  # for plotting on cluster
 
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
