@@ -1,25 +1,22 @@
 # python 3.6.5, HiPerGator
 """
 Goals:
-
-1. transcript density per volume of fiber
-2. ratio of nuclear to cytoplasmic transcripts
+1. open CZI image and separate channels
+2. segment muscle fiber and nuclei by automated threshold selection
+3. detect HCR FISH spots by Laplacian of Gaussian
+4. calculate transcript density within nuclear, perinuclear, and cytoplasmic compartments
 """
+
 import matplotlib
 matplotlib.use('Agg')
 
-from copy import deepcopy
-# from czifile import CziFile
-# from itertools import count
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
-from skimage import feature, exposure, filters, morphology
-from xml.etree import ElementTree
+from skimage import morphology
 import argparse
 import csv
 import numpy as np
 import os
-import scipy.ndimage as ndi
 
 # custom libraries
 import scope_utils3 as su
@@ -193,8 +190,6 @@ if should_plot:
 #--  FISH SPOT DETECTION  -----------------------------------------------------#
 
 print('Finding FISH spots...')
-
-# spots_masked = mf.find_spots(img_rna, sigma=3, t_spot=t_spot, mask=img_fiber_only)
 spots_masked, spot_data = mf.find_spots_snrfilter(img_rna, sigma=2, snr=t_snr, t_spot=0.025, mask=img_fiber_only, imgprefix=img_name)
 
 with open(img_name + '_spot_data_intensities.csv', 'w') as spot_file:
