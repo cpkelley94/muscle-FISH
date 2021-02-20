@@ -18,7 +18,7 @@ First, we use the [Allen Cell and Structure Segmenter](https://www.biorxiv.org/c
 <img src="img/masks.png" alt="masks" width="500"/>
 
 To fill in gaps in the Z-disk mask, we perform a single [binary closing](https://scikit-image.org/docs/dev/auto_examples/applications/plot_morphology.html) operation. We then [skeletonize](https://scikit-image.org/docs/dev/auto_examples/edges/plot_skeleton.html) both masks. We merge the skeletons into a single mask, with the following possible values at each array position:
-- `0`: neither skeleton
-- `1`: Z-disk skeleton only
-- `2`: microtubule skeleton only
-- `3`: Z-disk and microtubule skeletons
+- **0**: neither skeleton
+- **1**: Z-disk skeleton only
+- **2**: microtubule skeleton only
+- **3**: Z-disk and microtubule skeletons
