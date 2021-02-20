@@ -16,11 +16,11 @@ Once the regions have been defined, we use the [Laplacian of Gaussian approach](
 
 <img src="vcl_spot_detection.gif" alt="vcl_spot_detection">
 
-At this point, using the region masks, we can assign spots to nuclear, perinuclear, and cytoplasmic compartments.
+At this point, using the region masks, we assign spots to nuclear, perinuclear, and cytoplasmic compartments.
 
 <img src="vcl_region_assignment.gif" alt="vcl_region_assignment">
 
-We can calculate the volume of each region from the number of `True` elements in the mask and the voxel dimensions of the microscope image. With these volumes, we can calculate the density of mRNAs in each region:
+We calculate the volume of each region from the number of `True` elements in the mask and the voxel dimensions of the microscope image. With these volumes, we calculate the density of mRNAs in each region:
 
 ```
 nuclear:      26 spots, 0.0164690731557966 spots/um^3, 10.92436974789916% of spots
@@ -29,6 +29,6 @@ perinuclear:  46 spots, 0.010984723351771131 spots/um^3, 19.327731092436974% of 
 sarcoplasmic: 166 spots, 0.006026747805161343 spots/um^3, 69.74789915966386% of spots
 ```
 
-With information from multiple images for each gene, we can statistically test whether mRNAs from certain genes are enriched in a particular region.
+With information from multiple images for each gene, we statistically test whether mRNAs from certain genes are enriched in a particular region.
 
 We applied these basic techniques to analyze all images in our study. To address additional questions, we have also implemented methods to segment cytoskeletal structures from IF, detect intersections between cytoskeletal filaments, measure distances between objects, and simulate motion of RNAs in muscle fibers. For more details, check out our manuscript (coming soon).
