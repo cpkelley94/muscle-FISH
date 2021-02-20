@@ -1,3 +1,8 @@
+"""
+Make plots to compare distributions of spot intensities across compartments and 
+across conditions for each gene.
+"""
+
 from collections import defaultdict
 from copy import deepcopy
 from matplotlib import pyplot as plt
@@ -9,6 +14,8 @@ import pandas as pd
 import seaborn as sns
 
 def calculate_ci(real, bootstraps, ci=0.95):
+    """Calculate the 95% confidence interval of a CCDF.
+    """
     real_sorted = sorted(real)
     bs_sorted = [sorted(b) for b in bootstraps]
     bs_y = [[1.-(float(j)/len(b)) for j in range(len(b))] for b in bs_sorted]
@@ -94,9 +101,6 @@ for g in sorted(list(genes)):
     ax.step(x_C, y_C, 'k')
     ax.step(x_N, y_N, 'r')
     ax.set_xscale('log')
-
-    # ax.hist(spots_dict[g]['C']['peri'], normed=True, cumulative=True, label='control', histtype='step', color='#aaaaaa')
-    # ax.hist(spots_dict[g]['N']['peri'], normed=True, cumulative=True, label='control', histtype='step', color='r')
     ax.set_ylabel('CDF')
     ax.set_xlabel('Spot intensity')
     plt.tight_layout()
@@ -106,7 +110,6 @@ for g in sorted(list(genes)):
 # make swarm plots
 print('Drawing strip plots...')
 for g in sorted(list(genes)):
-    # print(g)
     data_list = []
     for cat in ['cyt', 'peri']:
         for c in conditions:
@@ -184,16 +187,9 @@ for g in sorted(list(genes)):
     ax.fill_between(x_C, y_mins_C, y_maxs_C, step='pre', color='k', alpha=0.3, linewidth=0)
     ax.fill_between(x_N, y_mins_N, y_maxs_N, step='pre', color='r', alpha=0.3, linewidth=0)
 
-
-    # for n in range(n_samples):
-    #     ax.step(bs_x_C[n], bs_y_C[n], 'k', alpha=0.2)
-    #     ax.step(bs_x_N[n], bs_y_N[n], 'r', alpha=0.2)
-
     ax.set_xscale('log')
     ax.set_yscale('log')
 
-    # ax.hist(spots_dict[g]['C']['peri'], normed=True, cumulative=True, label='control', histtype='step', color='#aaaaaa')
-    # ax.hist(spots_dict[g]['N']['peri'], normed=True, cumulative=True, label='control', histtype='step', color='r')
     ax.set_ylabel('Tail distribution')
     ax.set_xlabel('Spot intensity')
     plt.tight_layout()

@@ -1,17 +1,17 @@
 # python 3.6.5, HiPerGator
 """
 Goals:
-
-1. find distribution of FISH spot intensities for single transcripts
-2. estimate number of transcripts per perinuclear cluster
-3. compare transcript overlap between same nucleus and (control) different nuclei
+1. open CZI image and separate channels
+2. segment muscle fiber and nuclei by automated threshold selection
+3. detect HCR FISH spots by Laplacian of Gaussian
+4. load blob segmentations
+5. assign blobs to perinuclear or cytoplasmic compartments
+6. calculate intensity of each granule
 """
-
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg')  # for plotting on cluster
 
 from copy import deepcopy
-# from itertools import count
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.colors import LogNorm
@@ -45,10 +45,9 @@ np.setbufsize(1E7)
 
 #--  FUNCTION DECLARATIONS  ---------------------------------------------------#
 
-def count_spots(threshold):
-    return len(feature.blob_log(imgs_rna[chan], 1., 1., num_sigma=1, threshold=threshold))
-
 def update_z(frame):
+    '''Frame updater for FuncAnimation.
+    '''
     im_xy.set_data(imgs_rna[chan][:,:,frame])
     colors = []
     for spot in spots_masked:
@@ -57,17 +56,9 @@ def update_z(frame):
     spots_xy.set_facecolor(colors)
     return im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
 
-def update_z_spot(fm):
-    # update fish frame
-    im.set_data(imgs_rna[chan][x_int-10:x_int+10, y_int-10:y_int+10, fm])
-    if plot_circ:
-        alpha = np.exp(-1.*((float(fm)-z)**2.)/(2.*(sig_z**2.)))
-        circ.set_edgecolor((1., 0., 0., alpha))
-        return im, circ
-
-    return im
-
 def update_z_edge(frame):
+    '''Frame updater for FuncAnimation.
+    '''
     im_xy.set_data(imgs_rna[chan][:,:,frame])
     colors = []
     for spot in spots_masked:
@@ -76,17 +67,9 @@ def update_z_edge(frame):
     spots_xy.set_edgecolor(colors)
     return im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
 
-def update_z_grassfire(frame):
-    dapi_xy.set_data(img_dapi[:,:,frame])
-    im_xy.set_data(imgs_rna[chan][:,:,frame])
-    colors = spots_xy.get_facecolor()
-    for i, spot in enumerate(spots_xyz):
-        alpha = su.gauss_1d(frame, 1., spot[2]/dims['Z'], 1.)
-        colors[i,3] = alpha
-    spots_xy.set_facecolor(colors)
-    return dapi_xy, im_xy, spots_xy  # this return structure is a requirement for the FuncAnimation() callable
-
 def update_z_compartments(frame):
+    '''Frame updater for FuncAnimation.
+    '''
     im_xy.set_data(imgs_rna[chan][:,:,frame])
     colors_nuc = []
     colors_cyt = []
@@ -105,156 +88,6 @@ def update_z_compartments(frame):
     spots_peri_xy.set_facecolor(colors_peri)
     return im_xy, spots_nuc_xy, spots_cyt_xy, spots_peri_xy  # this return structure is a requirement for the FuncAnimation() callable
 
-def transform_mask(tf, m2):
-    cent2 = np.array(measure.regionprops(m2)[0].centroid).astype(int)
-    m2_shift_center = interpolation.shift(m2, shift=np.append((np.array(m2.shape[:2])/2.).astype(int)-cent2[:2], [0]), order=0)
-    m2_rotate = interpolation.rotate(m2_shift_center, angle=tf[3], order=0, reshape=False)
-    m2_shift_back = interpolation.shift(m2_rotate, shift=np.append(cent2[:2]-(np.array(m2.shape[:2])/2.).astype(int), [0]), order=0)
-    m2_final = interpolation.shift(m2_shift_back, shift=tf[:3], order=0)
-    return m2_final
-
-def transform_image(tf, ctr, img):
-    # ctr = np.array(measure.regionprops(img)[0].centroid).astype(int)
-    img_shift_center = interpolation.shift(img, shift=np.append((np.array(img.shape[:2])/2.).astype(int)-ctr[:2], [0]), order=3)
-    img_rotate = interpolation.rotate(img_shift_center, angle=tf[3], order=3, reshape=False)
-    img_shift_back = interpolation.shift(img_rotate, shift=np.append(ctr[:2]-(np.array(img.shape[:2])/2.).astype(int), [0]), order=3)
-    img_final = interpolation.shift(img_shift_back, shift=tf[:3], order=3)
-    return img_final
-
-def align_masks(mask1, mask2):
-    '''
-    Align two binary integer arrays. Allow floating point transforms in x and y, 
-    but integer only in z. Allow floating point rotations with interpolation.
-    '''
-
-    def optim_func(tf, m1, m2):
-        m2_tf = interpolation.shift(interpolation.rotate(m2, angle=tf[3], order=0, reshape=False), shift=[tf[0], tf[1], int(tf[2])], order=0)
-        # print(tf, -1*np.count_nonzero(np.logical_and(m1.astype(bool), m2_tf.astype(bool))))
-        return -1*np.count_nonzero(np.logical_and(m1.astype(bool), m2_tf.astype(bool)))
-
-    centroid1 = np.array(measure.regionprops(mask1)[0].centroid).astype(int)
-    centroid2 = np.array(measure.regionprops(mask2)[0].centroid).astype(int)
-    feret1 = measure.regionprops(mask1)[0].major_axis_length
-    feret2 = measure.regionprops(mask2)[0].major_axis_length
-    max_diam = max(feret1, feret2)
-    rad = int(0.6*max_diam)
-
-    if (centroid1[0] - rad < 0) or (centroid1[0] + rad > mask1.shape[0]) or (centroid1[1] - rad < 0) or (centroid1[1] + rad > mask1.shape[1]):
-        # feature in mask1 is too close to boundary
-        return False
-    if (centroid2[0] - rad < 0) or (centroid2[0] + rad > mask2.shape[0]) or (centroid2[1] - rad < 0) or (centroid2[1] + rad > mask2.shape[1]):
-        # feature in mask2 is too close to boundary
-        return False
-
-    mask1_crop = mask1[centroid1[0]-rad:centroid1[0]+rad, centroid1[1]-rad:centroid1[1]+rad, :]
-    mask2_crop = mask2[centroid2[0]-rad:centroid2[0]+rad, centroid2[1]-rad:centroid2[1]+rad, :]
-
-    # su.animate_zstacks([mask1_crop, mask2_crop], cmaps=['binary_r', 'binary_r'], gif_name='anim/test_crop.gif')  
-
-    # optimize z
-    z_arr = np.empty(((mask2.shape[2]*2)+1, 2))
-    for i, z_shift in enumerate(range(-1*mask2.shape[2], mask2.shape[2]+1)):
-        z_arr[i,0] = z_shift
-        z_arr[i,1] = optim_func([0, 0, z_shift, 0], mask1_crop, mask2_crop)
-        # z_dict[z_shift] = optim_func([0, 0, z_shift, 0], mask1_crop, mask2_crop)
-    z_func_min = np.amin(z_arr[:,1])
-    z_opt = z_arr[np.argwhere(z_arr[:,1] == z_func_min)[0], 0][0]
-
-    # optimize angle
-    cur_opt_angle = 0.
-    interval = 3.
-    window = 5
-    angle_arr = np.empty(((window*2)+1, 2))
-    shift_dir = 'none'
-    tried_flipped = False
-    while True:
-        angles_to_test = [cur_opt_angle+(interval*i) for i in range(-1*window, window+1)]
-        for i, theta in enumerate(angles_to_test):
-            angle_arr[i,0] = theta
-            angle_arr[i,1] = optim_func([0, 0, z_opt, theta], mask1_crop, mask2_crop)
-            # angle_dict[optim_func([0, 0, z_opt, theta], mask1_crop, mask2_crop)] = theta
-        angle_func_min = np.amin(angle_arr[:,1])
-        
-        if np.all(angle_arr[:,1] == angle_func_min):
-            # all values are the same, optimization complete
-            if not tried_flipped:
-                # try 180 degree rotation
-                angle_opt = cur_opt_angle
-                func_min_opt = angle_func_min
-                cur_opt_angle += 180
-                interval = 1.
-                tried_flipped = True
-                continue
-            else:
-                if func_min_opt < angle_func_min:
-                    break
-                else:
-                    angle_opt = cur_opt_angle
-                    break 
-        elif angle_arr[0,1] == angle_func_min:
-            # best angle is at the edge of the window
-            if shift_dir == 'right':
-                # we just shifted the other way last time
-                # to prevent infinite loop, take the halfway point and optimize around that
-                cur_opt_angle = (angles_to_test[0] + angles_to_test[window])/2.
-                interval /= 2.
-                shift_dir = 'none'
-                continue
-            else:
-                # recenter the window and try again
-                cur_opt_angle = angle_arr[0,0]
-                shift_dir = 'left'
-                # print('left')
-                continue
-        elif angle_arr[-1,1] == angle_func_min:
-            # best angle is at the edge of the window
-            if shift_dir == 'left':
-                # we just shifted the other way last time
-                # to prevent infinite loop, take the halfway point and optimize around that
-                cur_opt_angle = (angles_to_test[-1] + angles_to_test[window])/2.
-                interval /= 2.
-                shift_dir = 'none'
-                continue
-            else:
-                # recenter the window and try again
-                cur_opt_angle = angle_arr[-1,0]
-                shift_dir = 'right'
-                # print('right')
-                continue
-        else:
-            # find the best point and zoom in on it
-            shift_dir = 'none'
-            cur_opt_angle = angle_arr[np.argwhere(angle_arr[:,1] == angle_func_min)[0], 0]
-            interval /= 4.
-            continue
-
-    # numerical optimization method attempts
-
-    # x_guess, y_guess, z_guess = centroid1 - centroid2
-    # print(centroid1 - centroid2)
-    # x_ext, y_ext, z_ext = [(-1*min(mask1.shape[i], mask2.shape[i]), min(mask1.shape[i], mask2.shape[i])) for i in range(3)]
-    # res = optimize.minimize(optim_func, x0=[0., 0., 0., 0.], args=(mask1_crop, mask2_crop), method='BFGS', options={'eps':[1., 1., 1., 0.25], 'gtol':100.})
-    # res = optimize.basinhopping(optim_func, x0=[0., 0., 0., 0.], stepsize=5, niter=25, minimizer_kwargs={'args':(mask1_crop, mask2_crop), 'method':'BFGS', 'options':{'eps':[1., 1., 1., 0.25], 'gtol':100., 'maxiter':200}})
-    # res = optimize.minimize(optim_func, x0=[x_guess, y_guess, z_guess, 0], args=(mask1, mask2), bounds=[x_ext, y_ext, z_ext, (-180, 180)])
-    # res = optimize.minimize(optim_func, x0=[x_guess, y_guess, z_guess, 0], args=(mask1, mask2), method='nelder-mead')
-    # transform = res.x
-    # transform[:3] += centroid1 - centroid2
-
-    transform = centroid1 - centroid2
-    transform[2] += z_opt
-    transform = np.append(transform, angle_opt)
-    mask2_tf = transform_mask(transform, mask2)
-    aligned_masks = mask1 + 2*mask2_tf
-    z_overlap = [True if np.any(aligned_masks[:,:,z] == 3) else False for z in range(aligned_masks.shape[2])]
-    zrange = (np.amin(np.argwhere(z_overlap)), np.amax(np.argwhere(z_overlap)) + 1)
-    overlap = float(np.count_nonzero(aligned_masks[:,:,zrange[0]:zrange[1]] == 3))/float(np.count_nonzero(aligned_masks[:,:,zrange[0]:zrange[1]] > 0))
-    
-    print(transform)
-    print(overlap)
-    print(zrange)
-
-    return transform, overlap, zrange, centroid1, centroid2, rad
-
 
 #--  COMMAND LINE ARGUMENTS  --------------------------------------------------#
 
@@ -263,7 +96,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('img', type=str, nargs=1, help='Path to image file (CZI or OME-TIFF).')
 parser.add_argument('outdir', type=str, nargs=1, help='Directory to export data.')
 parser.add_argument('genes', type=str, nargs='*', help='Gene names, in order of appearance in image file.')
-
 parser.add_argument('-d', '--dapi-threshold', help='Threshold value for nucleus segmentation (default: Otsu\'s method)', default=None)
 parser.add_argument('-f', '--fiber-threshold', help='Threshold value for fiber segmentation (default: Li\'s method)', default=None)
 parser.add_argument('-1', '--spot-threshold1', help='Threshold value for spot detection in FISH channel 1 (default: 0.02)', default=0.02)
@@ -414,13 +246,7 @@ for chan, gene in enumerate(genes):
     #--  FISH SPOT DETECTION  -------------------------------------------------#
 
     print('Finding FISH spots...')
-    # img_rna_corr = mf.fix_bleaching(imgs_rna[chan], mask=img_fiber_only, draw=True, imgprefix=img_name+'^'+gene)
-    # spots_masked, spot_data = mf.find_spots_snrfilter(img_rna_corr, sigma=2, snr=t_snr[chan], t_spot=0.025, mask=img_fiber_only, imgprefix=img_name)
     spots_masked = mf.find_spots(imgs_rna[chan], t_spot=t_spot[chan], mask=img_fiber_only)
-
-    # with open(os.path.join(outdir, img_name + '_spot_data_intensities^' + gene + '.csv'), 'w') as spot_file:
-    #     writer = csv.writer(spot_file)
-    #     writer.writerows(spot_data)
 
     print(str(spots_masked.shape[0]) + ' spots detected within fiber.')
 
@@ -525,40 +351,24 @@ for chan, gene in enumerate(genes):
 
     blobs_cyt = np.zeros_like(blob_masks[chan])
     blobs_peri = np.zeros_like(blob_masks[chan])
-
-    # norm_factor = np.median(imgs_rna_unnormed[chan][img_fiber_only.astype(bool)])
     
     labeled_blobs, n_blobs = morphology.label(morphology.remove_small_objects(blob_masks[chan], min_size=8), connectivity=1, return_num=True)
     print('\n' + str(n_blobs) + ' blobs found in Allen Segmenter mask.')
 
-    # # create thin shell perinuclear mask
-    # nuc_dil = morphology.binary_dilation(nuclei_binary)  # expand x, y, z
-    # region_peri_shell = np.where(np.logical_and(nuc_dil > nuclei_binary, np.logical_or(img_fiber_only.astype(bool), nuclei_binary.astype(bool))), 1, 0)
-
-    # region_peri_bool = region_peri_shell.astype(bool)
-    region_peri_bool = region_nuc_peri.astype(bool)
-    # region_peri_bool = region_peri.astype(bool)
+    region_peri_bool = region_peri.astype(bool)
     region_cyt_bool = region_cyt.astype(bool)
 
     # classify spots and get intensities
     print('Classifying blobs and calculating intensities... 0%', end='')
     intensity_map = np.full_like(labeled_blobs, np.nan, dtype=np.float32)
-    # intensity_map = np.zeros_like(labeled_blobs, dtype=np.float32)
     for l in range(1, n_blobs+1):
         this_blob = (labeled_blobs == l)
         intens = np.sum(imgs_rna_unnormed[chan][this_blob])
         intensity_map[this_blob] = np.log(intens)
-        # intensity_map[this_blob] = intens
-        # intensity_map[this_blob] = np.random.random() # label each spot with different color
 
         # categorize spots by compartment
-        # if np.all(region_peri_bool[this_blob]):
-        #     # blob is fully enclosed in perinuclear region
-        #     blobs_peri = blobs_peri + this_blob
-        #     intensities_peri.append(np.sum(imgs_rna[chan][this_blob]))
-        #     sizes_peri.append(np.count_nonzero(this_blob))
-        if np.all(region_peri_bool[this_blob]):
-            # blob overlaps with perinuclear shell
+        if np.any(region_peri_bool[this_blob]) and not np.any(region_cyt_bool[this_blob]):
+            # blob overlaps with perinuclear shell but does not overlap with cytoplasm
             blobs_peri = blobs_peri + this_blob
             intensities_peri.append(intens)
             sizes_peri.append(np.count_nonzero(this_blob))
@@ -570,27 +380,6 @@ for chan, gene in enumerate(genes):
         print('\rClassifying blobs and calculating intensities... ' + str(round(100.*l/n_blobs)) + '%', end='')
     
     print('\nBlob classification complete.')
-
-    # # get spot intensities in sarcoplasm
-    # labeled_blobs_cyt, n_cyt = morphology.label(blobs_cyt, return_num=True)
-    # for l in range(1, n_cyt):
-    #     this_blob = (labeled_blobs_cyt == l)
-    #     intensities_cyt.append(np.sum(imgs_rna[chan][this_blob]))
-    #     sizes_cyt.append(np.count_nonzero(this_blob))
-
-    # # get spot intensities in perinuclear space
-    # labeled_blobs_peri, n_peri = morphology.label(blobs_peri, return_num=True)
-    # for l in range(1, n_peri):
-    #     this_blob = (labeled_blobs_peri == l)
-    #     intensities_peri.append(np.sum(imgs_rna[chan][this_blob]))
-    #     sizes_peri.append(np.count_nonzero(this_blob))
-
-    # for l in range(1, n_blobs+1):
-    #     this_blob = (labeled_blobs == l)
-    #     intens = np.sum(imgs_rna[chan][this_blob])
-    #     intensity_map[this_blob] = np.log(intens)
-    #     # intensity_map[this_blob] = intens
-    #     # intensity_map[this_blob] = np.random.random() # label each spot with different color
     
     # draw animation of spot intensities
     both_blobs = blobs_cyt + 2*blobs_peri
@@ -661,93 +450,3 @@ for chan, gene in enumerate(genes):
     with open(os.path.join(outdir, 'spot_intensities', img_name + '_intens_cyt^' + gene + '.csv'), 'w') as outfile:
         writer = csv.writer(outfile)
         writer.writerows([intensities_cyt])
-    
-    '''
-
-    df = pd.DataFrame([['peri', intens] for intens in intensities_peri] + [['cyt', intens] for intens in intensities_cyt], columns=['compartment', 'intensity'])
-
-    # swarm plot
-    ax = sns.swarmplot(x='compartment', y='intensity', data=df)
-    ax.set_ylabel('FISH spot intensity')
-    plt.tight_layout()
-    plt.savefig('intensity_swarm_' + gene + '_linear.pdf', dpi=300)
-    # plt.show()
-    plt.close()
-
-    fig, log_ax = plt.subplots()
-    log_ax.set_yscale("log") # log first
-    # log_ax.set_ylim(4E-6, 2E0)
-    sns.swarmplot(x='compartment', y='intensity', data=df, ax=log_ax)
-    plt.tight_layout()
-    plt.savefig('intensity_swarm_' + gene + '_log.pdf', dpi=300)
-    # plt.show()
-    plt.close()
-    '''
-
-'''
-#--  PERINUCLEAR GRANULE ANALYSIS  --------------------------------------------#
-
-# iterate over all nuclei and compare transcripts 1 and 2
-init = False
-for i in range(n_nucperi):
-    t1 = imgs_rna[0][labeled_nuc_peri == i+1]
-    t2 = imgs_rna[1][labeled_nuc_peri == i+1]
-
-    heatmap, xedges, yedges = np.histogram2d(np.log10(t1), np.log10(t2), range=[[-3, 0], [-3, 0]], bins=50)
-    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
-
-    if not init:
-        avg_heatmap = deepcopy(heatmap)
-        init = True
-    else:
-        avg_heatmap += heatmap
-
-    fig, ax = plt.subplots()
-    cmap = cm.get_cmap('inferno')
-    ax.set_facecolor(cmap(0))
-    ax.imshow(heatmap.T, cmap='inferno', extent=extent, origin='lower', norm=LogNorm())
-    ax.set_xlabel('Gene 1 (FISH intensity)')
-    ax.set_ylabel('Gene 2 (FISH intensity)')
-    plt.savefig('anim/test' + str(i) + '.png', dpi=600)
-    plt.close()
-
-fig, ax = plt.subplots()
-cmap = cm.get_cmap('inferno')
-ax.set_facecolor(cmap(0))
-ax.imshow(avg_heatmap.T, cmap='inferno', extent=extent, origin='lower', norm=LogNorm())
-ax.set_xlabel('Gene 1 (FISH intensity)')
-ax.set_ylabel('Gene 2 (FISH intensity)')
-plt.savefig('anim/average_heatmap.png', dpi=600)
-plt.close()
-
-# build a null distribution by mixing transcript localizations between nuclei
-border_pix = np.ones_like(labeled_nuc_peri)
-border_pix[1:-1, 1:-1] = 0
-for i in range(n_nucperi):
-    for j in range(n_nucperi):
-        if i >= j:
-            continue
-        elif np.any(np.logical_and(labeled_nuc_peri == i+1, border_pix.astype(bool))):
-            # nucleus i overlaps image boundary
-            continue
-        elif np.any(np.logical_and(labeled_nuc_peri == j+1, border_pix.astype(bool))):
-            # nucleus j overlaps image boundary
-            continue
-        
-        print(i, j)
-        nuc_mask_i = np.where(labeled_nuc_peri == i+1, 1, 0)
-        nuc_mask_j = np.where(labeled_nuc_peri == j+1, 1, 0)
-        transform, overlap, zrange, centroid, centroid2, box_dim = align_masks(nuc_mask_i, nuc_mask_j)
-        # nuc_mask_j_tf = transform_mask(transform, nuc_mask_j)
-        # aligned_masks = nuc_mask_i + 2*nuc_mask_j_tf
-        # su.animate_zstacks([nuc_mask_i, nuc_mask_j, nuc_mask_j_tf, aligned_masks], cmaps=['binary_r', 'binary_r', 'binary_r', 'gnuplot2'], vmax=[1,1,1,3], gif_name='anim/nuclei_alignment_' + str(i) + '_' + str(j) + '.gif')
-
-        # print('done, waiting')
-        # input()
-
-        img_rna_2j = transform_image(transform, centroid2, imgs_rna[1])
-        img_rna_1i_crop = imgs_rna[0][centroid[0]-box_dim:centroid[0]+box_dim, centroid[1]-box_dim:centroid[1]+box_dim, zrange[0]:zrange[1]]
-        img_rna_2j_crop = img_rna_2j[centroid[0]-box_dim:centroid[0]+box_dim, centroid[1]-box_dim:centroid[1]+box_dim, zrange[0]:zrange[1]]
-
-        su.animate_zstacks([img_rna_1i_crop, img_rna_2j_crop], titles=['nuc_1, rna_1', 'nuc_2, rna_2'], cmaps=['binary_r']*2, gif_name='anim/test_align_rna_' + str(i) + '_' + str(j) + '.gif')
-'''

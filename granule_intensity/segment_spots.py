@@ -1,3 +1,8 @@
+# python 3.6.5, HiPerGator
+"""
+Segment FISH blobs from background using the Allen Cell and Structure 
+Segmenter.
+"""
 from aicssegmentation.core.pre_processing_utils import image_smoothing_gaussian_3d
 from aicssegmentation.core.seg_dot import dot_3d_wrapper
 from aicsimageio.writers import OmeTiffWriter
@@ -6,7 +11,6 @@ from skimage import morphology, feature, measure
 import argparse
 import numpy as np
 import os
-# import tifffile
 
 # custom libraries
 import scope_utils3 as su
@@ -74,8 +78,6 @@ for i, g in enumerate(genes):
     print('Exporting mask...')
     outname = img_name + '_mask^' + g + '.tiff'
     p_out = os.path.join(outdir, 'masks', outname)
-
-    # tifffile.imwrite(p_out, data=seg)
 
     seg = seg > 0
     out=seg.astype(np.uint8)

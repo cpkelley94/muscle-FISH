@@ -1,3 +1,6 @@
+# python 3.6.5
+"""Combine spot intensity data across all images from the same gene.
+"""
 from collections import defaultdict
 import argparse
 import csv
