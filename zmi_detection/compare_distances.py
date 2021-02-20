@@ -1,6 +1,9 @@
+"""Compare distance-to-ZMI distributions for all genes.
+"""
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg')  # for plotting on cluster
 
+# figure params
 from matplotlib import rcParams
 rcParams['font.family'] = 'sans-serif'
 rcParams['font.size'] = 11
@@ -15,9 +18,10 @@ import os
 import scipy.stats as ss
 
 def fdr(p_vals):
+    """Correct p-values using Benjamini-Hochberg false discovery rate (FDR).
+    """
 
-    from scipy.stats import rankdata
-    ranked_p_values = rankdata(p_vals)
+    ranked_p_values = ss.rankdata(p_vals)
     q = p_vals * float(len(p_vals)) / ranked_p_values
     q[q > 1] = 1
 
@@ -37,12 +41,12 @@ genes = args['genes']
 expt_dists = {}
 rand_dists = {}
 for gene in genes:
-    expt_path = os.path.join(dists_dir, 'dists_tjunc_' + gene + '_experiment.txt')
+    expt_path = os.path.join(dists_dir, 'dists_zmi_' + gene + '_experiment.txt')
     with open(expt_path, 'r') as expt_file:
         reader = csv.reader(expt_file, delimiter='\t')
         expt_dists[gene] = [float(row[0]) for row in reader]
 
-    rand_path = os.path.join(dists_dir, 'dists_tjunc_' + gene + '_randomized.txt')
+    rand_path = os.path.join(dists_dir, 'dists_zmi_' + gene + '_randomized.txt')
     with open(rand_path, 'r') as rand_file:
         reader = csv.reader(rand_file, delimiter='\t')
         rand_dists[gene] = [float(row[0]) for row in reader]
@@ -57,7 +61,7 @@ for gene in genes:
     fig, ax = plt.subplots()
     ax.hist(expt_dists[gene], bins=1000, range=(0,max_dist), density=True, histtype='step', cumulative=True, color='r')
     ax.hist(rand_dists[gene], bins=1000, range=(0,max_dist), density=True, histtype='step', cumulative=True, color='k')
-    ax.set_xlabel('Distance to t-junction (um)')
+    ax.set_xlabel('Distance to ZMI (um)')
     ax.set_ylabel('Cumulative fraction')
     plt.tight_layout()
     plt.savefig('dist_hist_cdf_pooled_replicates^' + gene + '.png', dpi=300)
@@ -77,7 +81,7 @@ q_vals = fdr(p_np)
 for i, row in enumerate(stats_table):
     row.append(q_vals[i])
 
-with open('tjunc_dist_statistics_by_gene.txt', 'w') as outfile:
+with open('zmi_dist_statistics_by_gene.txt', 'w') as outfile:
     writer = csv.writer(outfile, delimiter='\t')
     writer.writerows([header] + stats_table)
 
@@ -95,6 +99,6 @@ ax.set_ylabel('-log10(q)')
 ax.set_xlim([-0.15, 0.15])
 ax.set_ylim([0, 10])
 plt.tight_layout()
-plt.savefig('tjunc_dist_volcano.png', dpi=300)
-plt.savefig('tjunc_dist_volcano.pdf', dpi=300)
+plt.savefig('zmi_dist_volcano.png', dpi=300)
+plt.savefig('zmi_dist_volcano.pdf', dpi=300)
 plt.close()

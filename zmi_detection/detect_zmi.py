@@ -1,12 +1,10 @@
 # python 3.6.5, HiPerGator
-
 import matplotlib
 matplotlib.use('Agg')
 
 from copy import deepcopy
 from matplotlib import pyplot as plt
 from scipy.ndimage.morphology import distance_transform_edt
-from scipy.signal import correlate2d
 from skimage import morphology, feature
 import argparse
 import math
@@ -27,12 +25,8 @@ def find_subarrays_crosscorr(arr, subarrs):
     positions = set()
     for i, s in enumerate(subarrs):
         print('\rSearch progress: ' + str(i+1) + '/' + str(len(subarrs)) + '...', end='')
-        # max_corr = np.amax(correlate2d(s,s))
-        # corr_mat = correlate2d(arr, s)
-        # print(feature.match_template(s,s))
         max_corr = np.amax(feature.match_template(s,s))
         corr_mat = feature.match_template(arr, s)
-        # print(corr_mat)
         pos = np.argwhere(np.isclose(corr_mat, max_corr))
 
         if len(pos):
@@ -168,15 +162,6 @@ x_archetypes = [
     np.array([[0,0,2,0],[1,1,2,0],[0,2,1,1],[0,2,0,0]]),
 ]
 
-# # draw the archetypes
-# fig, ax = plt.subplots(4,math.ceil(len(x_archetypes)/4))
-# # fig.set_size_inches(14, 4)
-# for i, arch in enumerate(x_archetypes):
-#     ax[i//4, i%4].imshow(arch, vmax=3, interpolation='nearest', cmap='gnuplot2')
-# plt.tight_layout()
-# plt.savefig('cross_archetypes.png', dpi=600)
-# plt.close()
-
 all_crosses = []
 
 # make all possible permutations of the archetype
@@ -208,7 +193,7 @@ for arch in x_archetypes:
         if not any(np.array_equal(x, z) for z in all_crosses):
             all_crosses.append(x)
 
-# # draw out all the cross shapes
+# # draw out all motifs
 # fig, ax = plt.subplots(math.ceil(len(all_crosses)/8), 8)
 # fig.set_size_inches(8, math.ceil(len(all_crosses)/8))
 # for i, arch in enumerate(all_crosses):
@@ -254,17 +239,6 @@ for n in range(N_RANDOMIZATIONS):
     rand_spots = random.sample(indices, len(spots_skel))
     for spot in rand_spots:
         rand_dists_tjunc.append(dt_tjunc[tuple(spot.astype(int))])
-    
-    # if n < 5:
-    #     fig, ax = plt.subplots()
-    #     ax.imshow(merged_mask, cmap='gnuplot2')
-    #     rs = np.row_stack(rand_spots)
-    #     ax.plot(rs[:,1], rs[:,0], 'm.', ms=1.5, mew=0)
-    #     ax.set_xticks([])
-    #     ax.set_yticks([])
-    #     plt.tight_layout()
-    #     plt.savefig('rand_spots_' + str(n) + '.png', dpi=300)
-    #     plt.close()
 
 print('Done.')
 max_dist = max(max(true_dists_tjunc), max(rand_dists_tjunc))
