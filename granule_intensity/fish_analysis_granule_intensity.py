@@ -11,18 +11,9 @@ Goals:
 import matplotlib
 matplotlib.use('Agg')  # for plotting on cluster
 
-from copy import deepcopy
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
-from matplotlib.colors import LogNorm
-from matplotlib.tri import Triangulation
-from mpl_toolkits import mplot3d
-from numpy.linalg import norm
-from scipy.interpolate import interpn
-from scipy.ndimage import interpolation
-from scipy.ndimage.morphology import distance_transform_edt
-from skimage import feature, exposure, filters, morphology, measure
-from xml.etree import ElementTree
+from skimage import morphology
 import argparse
 import bootstrapped.bootstrap as bs
 import bootstrapped.stats_functions as bs_stats
@@ -30,12 +21,7 @@ import csv
 import matplotlib.cm as cm
 import numpy as np
 import os
-import pandas as pd
-import scipy.ndimage as ndi
-import scipy.optimize as optimize
-import seaborn as sns
 import tifffile
-import trimesh
 
 # custom libraries
 import scope_utils3 as su
