@@ -1,3 +1,7 @@
+"""
+Markovian simulation of RNA transport dynamics in muscle fibers.
+"""
+
 import matplotlib
 matplotlib.use('Agg')  # for plotting on cluster
 
@@ -19,6 +23,10 @@ import scope_utils3 as su
 import muscle_fish as mf
 
 class RNA:
+    """
+    An object that describes a single RNA molecule. Stores information on the 
+    RNA's position, current motion state, and sampled motion parameters.
+    """
     def __init__(self, _id, init_pos=[0.,0.,0.]):
         global dims, k_deg, t
         self._id = _id
@@ -34,21 +42,34 @@ class RNA:
         self.hit_bounds = False
 
         # set initial state
-        # 0 = slow-diffusion, 1 = fast-diffusion, 2 = slow-directed, 3 = fast-directed
+        # 0 = low-mobility, 1 = high-mobility, 2 = crawling, 3 = processive
         if fast_diff_only:
             self.state = 1
         else:
             self.state = 0 
 
     def sample_D_slow(self):
+        """
+        Sample low-mobility diffusion coefficient from KDE-smoothed distribution of measurements.
+        """
         global log_kde_low_diff
         return np.power(10, log_kde_low_diff.resample(size=1)[0][0]) 
 
     def sample_D_fast(self):
+        """
+        Sample high-mobility diffusion coefficient from KDE-smoothed distribution of measurements.
+        """
         global log_kde_high_diff
         return np.power(10, log_kde_high_diff.resample(size=1)[0][0])
 
     def step(self):
+        """
+        Stochastically move the RNA according to the properties of its current 
+        motion state. For diffusive states, translate the RNA object by a 3D 
+        Gaussian random variable. For directed transport states, sample the 
+        travel distance from the corresponding measured distribution, and 
+        calculate the travel direction from the axial or radial unit vector.
+        """
         global tstep, mask_allowed, transition_mat, log_kde_fast_dist, log_kde_slow_dist
 
         # test for state transition
@@ -56,7 +77,7 @@ class RNA:
         self.state = np.random.choice([0, 1, 2, 3], p=state_probs)
 
         # advance RNA position according to rules of current state
-        if self.state == 0:  # slow-diffusion
+        if self.state == 0:  # low-mobility (diffusive)
             # adjust each position component using a Gaussian random variable
             dpos = np.array([random.gauss(0, np.sqrt(2.*self.D_slow*tstep)/dims[d]) for d in ['x', 'y', 'z']])
             test_pos = np.add(self.pos, dpos)
@@ -69,7 +90,7 @@ class RNA:
             
             self.pos = test_pos
 
-        elif self.state == 1:  # fast-diffusion
+        elif self.state == 1:  # high-mobility (diffusive)
             # adjust each position component using a Gaussian random variable
             dpos = np.array([random.gauss(0, np.sqrt(2.*self.D_fast*tstep)/dims[d]) for d in ['x', 'y', 'z']])
             test_pos = np.add(self.pos, dpos)
@@ -82,7 +103,7 @@ class RNA:
             
             self.pos = test_pos
         
-        elif self.state == 2:  # slow-directed
+        elif self.state == 2:  # crawling (directed)
             # sample from distance distribution
             travel_dist = np.power(10, log_kde_slow_dist.resample(size=1)[0][0])
 
@@ -97,7 +118,7 @@ class RNA:
             
             self.pos = test_pos
 
-        elif self.state == 3:  # fast-directed
+        elif self.state == 3:  # processive (directed)
             # sample from distance distribution
             travel_dist = np.power(10, log_kde_fast_dist.resample(size=1)[0][0])
 
@@ -122,12 +143,18 @@ class RNA:
         return self.pos
     
     def check_death(self):
+        """
+        Check if this RNA decays during this time-step.
+        """
         if random.random() < self.p_death:
             return True
         else:
             return False
     
     def kill(self):
+        """
+        Degrade this RNA. Change the state variable to `-1` and stop moving.
+        """
         global t
         self.is_dead = True
         self.state = -1
@@ -136,13 +163,16 @@ class RNA:
         return True
 
 def spawn_rna(_id, xlist, plist):
-    '''
+    """
     Create an instance of RNA and give it a starting position in image coordinates.
-    '''
+    """
     init_pos = random.choices(xlist, weights=plist, k=1)[0]
     return RNA(_id, init_pos=init_pos)
 
 def move_directed(pos, dist):
+    """
+    Calculate the new position of an RNA after directed motion.
+    """
     global e_axial, e_radial, dims
 
     # choose direction of movement
@@ -163,9 +193,9 @@ def move_directed(pos, dist):
     return new_pos
 
 def is_out_of_bounds(pos, allowed_region):
-    '''
+    """
     Check if an RNA position falls outside the allowed region of the image.
-    '''
+    """
     # test if position is outside image boundaries
     for e_i, ub in zip(pos, allowed_region.shape):
         if e_i < 0 or e_i > ub-1:
@@ -179,8 +209,14 @@ def is_out_of_bounds(pos, allowed_region):
         return True
 
 def get_fiber_axes(fiber_mask):
+    """
+    Find the axial and radial directions of the myofiber by linear least squares 
+    regression.
+    """
 
     def line_opt(x, m, b):
+        """Linear optimization function.
+        """
         return m*x + b
 
     # flatten to 2D and skeletonize
@@ -210,6 +246,10 @@ def get_fiber_axes(fiber_mask):
     return e_ax, e_rad
     
 def calculate_transitions(states):
+    """
+    Adjust the transition matrix according to the states allowed in the 
+    simulation.
+    """
     # define state transition matrix
     p01 = 0.
     p02 = 0.070100143061516444
