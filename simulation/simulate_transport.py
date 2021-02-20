@@ -96,7 +96,6 @@ class RNA:
             
             # if the RNA is out of bounds, retry until in bounds
             while is_out_of_bounds(test_pos, mask_allowed):
-                # print(self.state, 'BOOP', self.pos, test_pos)
                 travel_dist = np.power(10, log_kde_slow_dist.resample(size=1)[0][0])
                 test_pos = move_directed(self.pos, travel_dist)
                 self.hit_bounds = True
@@ -112,7 +111,6 @@ class RNA:
             
             # if the RNA is out of bounds, retry until in bounds
             while is_out_of_bounds(test_pos, mask_allowed):
-                # print(self.state, 'BOOP', self.pos, test_pos)
                 travel_dist = np.power(10, log_kde_fast_dist.resample(size=1)[0][0])
                 test_pos = move_directed(self.pos, travel_dist)
                 self.hit_bounds = True
@@ -147,7 +145,6 @@ def spawn_rna(_id, xlist, plist):
     Create an instance of RNA and give it a starting position in image coordinates.
     '''
     init_pos = random.choices(xlist, weights=plist, k=1)[0]
-    # print('RNA spawned at position ' + str(init_pos))
     return RNA(_id, init_pos=init_pos)
 
 def move_directed(pos, dist):
@@ -187,34 +184,6 @@ def is_out_of_bounds(pos, allowed_region):
         return True
 
 def get_fiber_axes(fiber_mask):
-    
-    '''def line_opt(params, distmat):
-        m, b = params
-        x = np.linspace(0, distmat.shape[0]-1, num=1000)
-        y = m*x + b
-
-        intens = interpn((list(range(distmat.shape[0])), list(range(distmat.shape[1]))), distmat, list(zip(x, y)), bounds_error=False)
-        score = -1.*np.nanmean(intens)
-
-        print(m, b, score)
-
-        return score
-
-    # flatten to 2D and skeletonize
-    mask_2d = np.amax(fiber_mask, axis=2)
-    medial_axis, dists_within_fiber = morphology.medial_axis(mask_2d, return_distance=True)
-
-    # extend distance matrix to border
-    dists_from_fiber = distance_transform_edt(np.logical_not(dists_within_fiber > 0))
-    dists = dists_within_fiber - dists_from_fiber
-    dists = dists - np.amin(dists)
-    # medial_axis = morphology.medial_axis(mask_2d)
-    # dists = distance_transform_edt(np.logical_not(medial_axis))
-    # print(dists)
-
-    # fit a line to the distance matrix
-    res = minimize(line_opt, x0=[1., 1000.], bounds=[(-100, 100), (-np.inf, np.inf)], args=(dists))
-    m, b = res.x'''
 
     def line_opt(x, m, b):
         return m*x + b
@@ -251,11 +220,6 @@ def calculate_transitions(states):
     p02 = 0.070100143061516444
     p03 = 0.027181688125894135
     p00 = 1.-(p01+p02+p03)
-
-    # p11 = np.exp(-1.*tstep/60.)
-    # p12 = 0.070100143061516444
-    # p13 = 0.027181688125894135
-    # p10 = 1.-(p11+p12+p13)
 
     p11 = 1.  # fast-diffusion persists until decay
     p12 = 0.
@@ -576,95 +540,3 @@ ax[1].set_xlabel('time (s)')
 ax[1].set_ylabel('Number of dead RNAs')
 plt.tight_layout()
 plt.savefig(os.path.join(outdir, img_name+'_trace^'+gene+'.pdf'), dpi=300)
-
-
-
-
-
-
-'''x = np.linspace(-3.5, -1, num=200)
-y = log_kde_high_diff.evaluate(x)
-
-fig, ax = plt.subplots()
-ax.hist(np.log10(meas_high_diff), bins=10, normed=True)
-ax.plot(x, y, 'r')
-ax.set_xlabel('log(Diffusion coefficient (um^2/s))')
-ax.set_ylabel('PDF')
-plt.tight_layout()
-plt.savefig(os.path.join(outdir, 'dist_high_diff.pdf'), dpi=300)
-
-x = np.linspace(-7, -1, num=200)
-y = log_kde_low_diff.evaluate(x)
-
-fig, ax = plt.subplots()
-ax.hist(np.log10(meas_low_diff), bins=10, normed=True)
-ax.plot(x, y, 'r')
-ax.set_xlabel('log(Diffusion coefficient (um^2/s))')
-ax.set_ylabel('PDF')
-plt.tight_layout()
-plt.savefig(os.path.join(outdir, 'dist_low_diff.pdf'), dpi=300)
-
-
-x = np.linspace(-1, 2, num=200)
-y = log_kde_fast_dist.evaluate(x)
-
-fig, ax = plt.subplots()
-ax.hist(np.log10(meas_fast_dist), bins=10, normed=True)
-ax.plot(x, y, 'r')
-ax.set_xlabel('log(Distance (um))')
-ax.set_ylabel('PDF')
-plt.tight_layout()
-plt.savefig(os.path.join(outdir, 'dist_fast_dist.pdf'), dpi=300)
-
-x = np.linspace(-1, 1, num=200)
-y = log_kde_slow_dist.evaluate(x)
-
-fig, ax = plt.subplots()
-ax.hist(np.log10(meas_slow_dist), bins=10, normed=True)
-ax.plot(x, y, 'r')
-ax.set_xlabel('log(Distance (um))')
-ax.set_ylabel('PDF')
-plt.tight_layout()
-plt.savefig(os.path.join(outdir, 'dist_slow_dist.pdf'), dpi=300)
-
-
-x = np.linspace(-1, 1, num=200)
-y = log_kde_fast_vel.evaluate(x)
-
-fig, ax = plt.subplots()
-ax.hist(np.log10(meas_fast_vel), bins=10, normed=True)
-ax.plot(x, y, 'r')
-ax.set_xlabel('log(Velocity (um/s))')
-ax.set_ylabel('PDF')
-plt.tight_layout()
-plt.savefig(os.path.join(outdir, 'dist_fast_vel.pdf'), dpi=300)
-
-x = np.linspace(-2, 0, num=200)
-y = log_kde_slow_vel.evaluate(x)
-
-fig, ax = plt.subplots()
-ax.hist(np.log10(meas_slow_vel), bins=10, normed=True)
-ax.plot(x, y, 'r')
-ax.set_xlabel('log(Velocity (um/s))')
-ax.set_ylabel('PDF')
-plt.tight_layout()
-plt.savefig(os.path.join(outdir, 'dist_slow_vel.pdf'), dpi=300)'''
-
-'''
-p01 = 1.-np.power(1-0.03719599427753934, tstep/60.)
-p02 = 0.070100143061516444
-p03 = 0.027181688125894135
-p00 = 1.-(p01+p02+p03)
-
-p11 = np.exp(-1.*tstep/60.)
-p12 = 0.070100143061516444
-p13 = 0.027181688125894135
-p10 = 1.-(p11+p12+p13)
-
-transition_mat = {
-    0:[p00, p01, p02, p03],
-    1:[p10, p11, p12, p13],
-    2:[1,0,0,0],
-    3:[1,0,0,0]
-}
-'''
