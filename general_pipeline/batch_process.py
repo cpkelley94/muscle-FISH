@@ -14,7 +14,6 @@ parser.add_argument('outdir', type=str, nargs=1, help='Name of the output direct
 args = vars(parser.parse_args())
 p_ftable = args['file_table'][0]
 outdir = args['outdir'][0]
-should_run = args['run']
 
 # make output directories if not already present
 if not os.path.exists(os.path.join(outdir, 'anim')):
@@ -33,7 +32,7 @@ for i, line in enumerate(file_list):
     img_name = os.path.splitext(os.path.basename(p_img))[0]
 
     cmd = 'module load python/3.6.5\n'
-    cmd += 'python 1_py3.py "' + p_img + '" ' + outdir + ' ' + gene
+    cmd += 'python fish_analysis.py "' + p_img + '" ' + outdir + ' ' + gene
     if not t_dapi == '.':
         cmd += ' -d ' + t_dapi
     if not t_fiber == '.':

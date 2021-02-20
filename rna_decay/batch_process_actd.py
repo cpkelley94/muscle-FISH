@@ -6,12 +6,10 @@ import subprocess
 parser = argparse.ArgumentParser()
 parser.add_argument('file_table', type=str, nargs=1, help='Path to the .txt file listing all CZI images and arguments.')
 parser.add_argument('outdir', type=str, nargs=1, help='Name of the output directory.')
-parser.add_argument('--run', action='store_true', help='Start SLURM processes.')
 
 args = vars(parser.parse_args())
 p_ftable = args['file_table'][0]
 outdir = args['outdir'][0]
-should_run = args['run']
 
 # make output directories if not already present
 if not os.path.exists(os.path.join(outdir, 'anim')):
@@ -30,7 +28,7 @@ for i, line in enumerate(file_list):
     img_name = os.path.splitext(os.path.basename(p_img))[0]
 
     cmd = 'module load python/3.6.5\n'
-    cmd += 'python count_rna_actd_py3.py "' + p_img + '" ' + outdir + ' ' + gene
+    cmd += 'python fish_analysis_actd.py "' + p_img + '" ' + outdir + ' ' + gene
     if not channel == '.':
         cmd += ' -c ' + channel
     if not t_dapi == '.':
@@ -50,9 +48,3 @@ for i, line in enumerate(file_list):
 for name, p in sh_paths:
     cmd = 'chmod +x ' + p
     subprocess.call(cmd, shell=True)
-
-if should_run:
-    # slurmify the bash scripts and queue them in slurm
-    for name, p in sh_paths:
-        cmd = 'slurmify-run ' + p + ' -n ' + name + ' -m 24 -t 1 --burst'
-        subprocess.Popen(cmd, shell=True)
