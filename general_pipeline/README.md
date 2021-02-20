@@ -6,7 +6,7 @@
 This Python image analysis pipeline was developed to analyze confocal fluorescence microscopy images of HCR-FISH in _ex vivo_ skeletal muscle fibers. The pipeline processes images in the CZI and OME-TIFF formats.
 
 ## Analysis steps
-1. open CZI image and separate channels
+1. open image and separate channels
 2. segment muscle fiber and nuclei by automated threshold selection
 3. detect HCR FISH spots by Laplacian of Gaussian
 4. calculate transcript density within nuclear, perinuclear, and cytoplasmic compartments
