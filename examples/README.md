@@ -19,3 +19,12 @@ Once the regions have been defined, we use the [Laplacian of Gaussian approach](
 At this point, using the region masks, we can assign spots to nuclear, perinuclear, and cytoplasmic compartments.
 
 <img src="vcl_region_assignment.gif" alt="vcl_region_assignment">
+
+We can calculate the volumes of each region from the number of `True` elements in the masks and the voxel dimensions of the microscope image. With these volumes, we can calculate the density of mRNAs in each region:
+
+```
+nuclear:      26 spots, 0.0164690731557966 spots/um^3, 10.92436974789916% of spots
+perinuclear:  46 spots, 0.010984723351771131 spots/um^3, 19.327731092436974% of spots
+(nuc + peri:  72 spots, 0.012486233580754902 spots/um^3, 30.252100840336134% of spots)
+sarcoplasmic: 166 spots, 0.006026747805161343 spots/um^3, 69.74789915966386% of spots
+```
