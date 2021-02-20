@@ -9,16 +9,13 @@ Goals:
 import matplotlib
 matplotlib.use('Agg')  # for plotting on cluster
 
-from copy import deepcopy
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
-from skimage import feature, exposure, filters, morphology
-from xml.etree import ElementTree
+from skimage import morphology
 import argparse
 import csv
 import numpy as np
 import os
-import scipy.ndimage as ndi
 
 # custom libraries
 import scope_utils3 as su
