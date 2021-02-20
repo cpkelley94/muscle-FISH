@@ -25,4 +25,8 @@ To fill in gaps in the Z-disk mask, we perform a single [binary closing](https:/
 
 ![merged_skeletons](img/merged_skeletons.png)
 
-We exclude all pixels in the merged array that fall within nuclei.
+To finalize the merged skeleton array, we exclude all pixels that fall within nuclei.
+
+To identify ZMIs, we search the merged skeleton array for 3x3 and 4x4 subarrays ("motifs") that reflect perpendicular intersections between Z-disks and microtubules with high confidence. From 14 archetype motifs, we enumerate this set of 162 motifs by rotation, reflection, and swapping of microtubule and Z-disk values:
+
+![all_motifs](img/all_motifs.png)
