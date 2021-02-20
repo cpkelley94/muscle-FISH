@@ -5,6 +5,8 @@ We developed a discrete-time Markov chain (DTMC)-based simulation to investigate
 
 1. **low-mobility**: a slow diffusion state with a low range of diffusion coefficients (median $`3.9 \times 10^{-4} \mathrm{µm^{2} s^{-1}}`$)
 
+<img src="https://latex.codecogs.com/gif.latex?O_t=\text { Onset event at time bin } t " >
+
 ## Instructions
 
 ## Examples
