@@ -1,6 +1,10 @@
 # python 3.6.5, HiPerGator
 """
 Library of functions for analysis of muscle fiber HCR-FISH images.
+
+Note: in general, these function assume 3D image arrays are organized as 
+(x, y, z). If you prefer images in the order (z, x, y), use the `z_first` 
+optional argument.
 """
 
 from itertools import count
@@ -9,10 +13,10 @@ from matplotlib.animation import FuncAnimation
 from scipy import optimize
 from skimage import feature, exposure, filters, morphology
 from xml.etree import ElementTree
-
 import numpy as np
 import os
 import scope_utils3 as su
+
 
 def open_image(img_path, meta_path=None, z_first=False):
     """Open a multichannel 3D microscopy image.
@@ -106,6 +110,7 @@ def open_image(img_path, meta_path=None, z_first=False):
 
     return img, img_name, metatree
 
+
 def threshold_nuclei(img_dapi, t_dapi=None, fiber_mask=None, labeled=True, multiplier=0.75, z_first=False, verbose=False):
     """Segment nuclei in a 3D DAPI image.
 
@@ -153,9 +158,6 @@ def threshold_nuclei(img_dapi, t_dapi=None, fiber_mask=None, labeled=True, multi
 
     # image preprocessing
     if z_first:
-        # switch to (x, y, z)
-        # img_dapi = img_dapi.transpose(1,2,0)
-        # fiber_mask = fiber_mask.transpose(1,2,0)
         sig = (2, 20, 20)
     else:
         sig = (20, 20, 2)
@@ -189,10 +191,6 @@ def threshold_nuclei(img_dapi, t_dapi=None, fiber_mask=None, labeled=True, multi
             overlap = np.logical_and(np.where(nuclei_labeled == i, True, False), fiber_mask.astype(bool))
             if np.count_nonzero(overlap) == 0:
                 nuclei_labeled[nuclei_labeled == i] = 0
-
-    # if z_first:
-    #     # convert back to user dimensions
-    #     nuclei_labeled = nuclei_labeled.transpose(2,0,1)
 
     if labeled:
         return nuclei_labeled
@@ -278,162 +276,6 @@ def threshold_fiber(img_fish, t_fiber=None, z_first=False, verbose=False):
         mask = mask.transpose(2,0,1)
 
     return mask
-
-def find_spots(img_fish, sigma=1., t_spot=0.025, mask=None):
-    """Find FISH spots in a 3D microscopy image.
-
-    Find HCR-FISH spots in the FISH channel and return the positions of all 
-    detected spots using `skimage.feature.blob_log`.
-
-    Parameters:
-
-    img_fish: np.array, 3D
-        A 3D numpy array containing signal from the FISH channel.
-    
-
-    Optional:
-
-    sigma: float (default 1.0)
-        The standard deviation of the Gaussian kernel used for blurring before 
-        the Laplacian operation.  Increasing this value will preferentially 
-        detect larger spots.
-    
-    t_spot: float (default None)
-        Threshold to use for spot detection, from 0 to 1. Typical values for 
-        this parameter fall between 0.01 and 0.05. Lower this value to detect 
-        more spots.
-
-    mask: np.array, 3D (same dimensions as `img_fish`)
-        If provided, spots detected outside the mask will not be returned.
-    """
-
-    spots = feature.blob_log(su.normalize_image(img_fish), sigma, sigma, num_sigma=1, threshold=t_spot)
-    
-    if mask is not None:
-        spots_masked = []
-        for spot in spots:
-            spot_pos = tuple(spot[0:3].astype(int))
-            if mask[spot_pos]:
-                spots_masked.append(spot)
-        spots_masked = np.row_stack(spots_masked)
-        return spots_masked
-    else:
-        return spots
-
-
-# experimental ----------------------------------------------------------------#
-
-def find_spots_gaussfit(img_fish, snr=4., sigma=1., t_spot=None, mask=None, draw=False, imgprefix='fiber'):
-    """
-    Find spots using LoG and filter out low-intensity spots. 
-
-    Has comparable results to find_spots_snrfilter() but is orders of magnitude 
-    slower.  Use find_spots_snrfilter() instead.
-    """
-
-    def update_z_spot(fm):
-        # update fish frame
-        im.set_data(img_fish[x_int-10:x_int+10, y_int-10:y_int+10, fm])
-        if plot_circ:
-            alpha = np.exp(-1.*((float(fm)-z)**2.)/(2.*(sig_z**2.)))
-            circ.set_edgecolor((1., 0., 0., alpha))
-            return im, circ
-
-        return im
-
-    spots = feature.blob_log(su.normalize_image(img_fish), sigma, sigma, num_sigma=1, threshold=t_spot)
-    
-    if mask is not None:
-        spots_masked = []
-        for spot in spots:
-            spot_pos = tuple(spot[0:3].astype(int))
-            if mask[spot_pos]:
-                spots_masked.append(spot)
-        spots_masked = np.row_stack(spots_masked)
-    else:
-        spots_masked = spots
-
-    # get fiber background intensity for noise comparison
-    fiber_intensities = np.ma.masked_where(np.logical_not(mask), img_fish).compressed()
-    # su.animate_zstack(np.ma.masked_where(np.logical_not(mask), img_fish), gif_name=imgprefix+'_fish_masked.gif')
-
-    if draw:
-        fig, ax = plt.subplots()
-        ax.hist(fiber_intensities, bins=100, density=True, histtype='step')
-        ax.set_xlabel('Normed intensity of fiber pixel')
-        ax.set_ylabel('Probability density')
-        plt.tight_layout()
-        plt.savefig(imgprefix + '_intensity_hist.png', dpi=300)
-        plt.close()
-
-    baseline = np.percentile(fiber_intensities, 25)
-    print(baseline)
-
-    # at each spot position, fit a 3D Gaussian and get intensity
-    spots_filtered = []
-    spot_data = [['spot_id', 'x', 'y', 'z', 'A', 'SNR']]
-    for c, spot in enumerate(spots_masked):
-        # find an approximate z value for the spot as a guess for the fit
-        x_int, y_int, z_int = tuple(spot[0:3].astype(int))
-        
-        # if draw:
-        #     fig_im, ax_im = plt.subplots()
-        #     im = ax_im.imshow(img_fish[x_int-10:x_int+10, y_int-10:y_int+10, z_int])
-        #     anim_spot = FuncAnimation(fig_im, update_z_spot, frames=np.clip(list(range(z_int-8, z_int+8)), 0, img_fish.shape[2]), interval=200, blit=False)
-        #     # plt.show()
-        #     anim.save('spot_' + str(c) + '.gif', writer='imagemagick', fps=8, dpi=300)
-        #     plt.close()
-
-        # get a local block of pixels around the spot for the fit
-        xyz = []
-        brightness = []
-        for i in range(x_int-15, x_int+15):
-            for j in range(y_int-15, y_int+15):
-                for k in range(z_int-8, z_int+8):
-                    # make sure data is within range
-                    if i >= 0 and i < img_fish.shape[0] and j >= 0 and j < img_fish.shape[1] and k >= 0 and k < img_fish.shape[2]:
-                        xyz.append([i, j, k])
-                        brightness.append(img_fish[i, j, k])
-        
-        # print('----------------')
-        # print('Initial guess: x=' + str(x_int) + ', y=' + str(y_int) + ', z=' + str(z_int))
-
-        if draw:
-            fig_im, ax_im = plt.subplots()
-            im = ax_im.imshow(img_fish[x_int-15:x_int+15, y_int-15:y_int+15, z_int], interpolation='bicubic', vmin=np.amin(img_fish[x_int-15:x_int+15, y_int-15:y_int+15, :]), vmax=np.amax(img_fish[x_int-15:x_int+15, y_int-15:y_int+15, :]))
-       
-        try:
-            gauss_params, gauss_cov = optimize.curve_fit(su.gauss_3d, xyz, brightness, p0=[3., x_int, y_int, z_int, 1., 1., 0., 0., 0., 500.], bounds=([0., x_int-1, y_int-1, z_int-2, 0.5, 0.5, -np.inf, -np.inf, -np.inf, 0.], [np.inf, x_int+1, y_int+1, z_int+2, 10, 10., np.inf, np.inf, np.inf, np.inf]))
-            A, x, y, z, sig_xy, sig_z, mx, my, mz, b = gauss_params
-            # print(gauss_params)
-
-            if A / baseline > snr:
-                spots_filtered.append(spot)
-
-            if draw:
-                circ = plt.Circle((x-x_int+15, y-y_int+15), sig_xy, linewidth=2.5, edgecolor='r', facecolor='#00000000')
-                ax_im.add_artist(circ)
-                plot_circ = True
-            
-            spot_data.append([c] + list(spot[0:3]) + [A, A/baseline])
-
-        except RuntimeError:
-            # optimization failed
-            # print('WARNING: Gaussian fit failed. Moving to next spot...')
-            
-            if draw:
-                plot_circ = False
-
-        if draw:
-            anim = FuncAnimation(fig_im, update_z_spot, frames=np.clip(list(range(z_int-8, z_int+8)), 0, img_fish.shape[2]-1), interval=200, blit=False)
-            # plt.show()
-            anim.save('spot_' + str(c) + '_fit.gif', writer='imagemagick', fps=8, dpi=300)
-            plt.close()
-
-        del xyz[:]
-        del brightness[:]
-
-    return np.row_stack(spots_filtered), spot_data
 
 
 def find_spots_snrfilter(img_fish, snr=None, sigma=1., t_spot=0.025, mask=None, z_first=False, draw=False, imgprefix='fiber'):
@@ -668,3 +510,163 @@ def fix_bleaching(img, second_half=True, mask=None, z_first=False, draw=False, i
         return corrected_img.transpose(2,0,1)
     else:
         return corrected_img
+
+
+# experimental ----------------------------------------------------------------#
+
+def find_spots_gaussfit(img_fish, snr=4., sigma=1., t_spot=None, mask=None, draw=False, imgprefix='fiber'):
+    """
+    Find spots using LoG and filter out low-intensity spots. 
+
+    Has comparable results to find_spots_snrfilter() but is orders of magnitude 
+    slower.  Use find_spots_snrfilter() instead.
+    """
+
+    def update_z_spot(fm):
+        # update fish frame
+        im.set_data(img_fish[x_int-10:x_int+10, y_int-10:y_int+10, fm])
+        if plot_circ:
+            alpha = np.exp(-1.*((float(fm)-z)**2.)/(2.*(sig_z**2.)))
+            circ.set_edgecolor((1., 0., 0., alpha))
+            return im, circ
+
+        return im
+
+    spots = feature.blob_log(su.normalize_image(img_fish), sigma, sigma, num_sigma=1, threshold=t_spot)
+    
+    if mask is not None:
+        spots_masked = []
+        for spot in spots:
+            spot_pos = tuple(spot[0:3].astype(int))
+            if mask[spot_pos]:
+                spots_masked.append(spot)
+        spots_masked = np.row_stack(spots_masked)
+    else:
+        spots_masked = spots
+
+    # get fiber background intensity for noise comparison
+    fiber_intensities = np.ma.masked_where(np.logical_not(mask), img_fish).compressed()
+
+    if draw:
+        fig, ax = plt.subplots()
+        ax.hist(fiber_intensities, bins=100, density=True, histtype='step')
+        ax.set_xlabel('Normed intensity of fiber pixel')
+        ax.set_ylabel('Probability density')
+        plt.tight_layout()
+        plt.savefig(imgprefix + '_intensity_hist.png', dpi=300)
+        plt.close()
+
+    baseline = np.percentile(fiber_intensities, 25)
+    print(baseline)
+
+    # at each spot position, fit a 3D Gaussian and get intensity
+    spots_filtered = []
+    spot_data = [['spot_id', 'x', 'y', 'z', 'A', 'SNR']]
+    for c, spot in enumerate(spots_masked):
+        # find an approximate z value for the spot as a guess for the fit
+        x_int, y_int, z_int = tuple(spot[0:3].astype(int))
+        
+        # if draw:
+        #     fig_im, ax_im = plt.subplots()
+        #     im = ax_im.imshow(img_fish[x_int-10:x_int+10, y_int-10:y_int+10, z_int])
+        #     anim_spot = FuncAnimation(fig_im, update_z_spot, frames=np.clip(list(range(z_int-8, z_int+8)), 0, img_fish.shape[2]), interval=200, blit=False)
+        #     # plt.show()
+        #     anim.save('spot_' + str(c) + '.gif', writer='imagemagick', fps=8, dpi=300)
+        #     plt.close()
+
+        # get a local block of pixels around the spot for the fit
+        xyz = []
+        brightness = []
+        for i in range(x_int-15, x_int+15):
+            for j in range(y_int-15, y_int+15):
+                for k in range(z_int-8, z_int+8):
+                    # make sure data is within range
+                    if i >= 0 and i < img_fish.shape[0] and j >= 0 and j < img_fish.shape[1] and k >= 0 and k < img_fish.shape[2]:
+                        xyz.append([i, j, k])
+                        brightness.append(img_fish[i, j, k])
+        
+        # print('----------------')
+        # print('Initial guess: x=' + str(x_int) + ', y=' + str(y_int) + ', z=' + str(z_int))
+
+        if draw:
+            fig_im, ax_im = plt.subplots()
+            im = ax_im.imshow(img_fish[x_int-15:x_int+15, y_int-15:y_int+15, z_int], interpolation='bicubic', vmin=np.amin(img_fish[x_int-15:x_int+15, y_int-15:y_int+15, :]), vmax=np.amax(img_fish[x_int-15:x_int+15, y_int-15:y_int+15, :]))
+       
+        try:
+            gauss_params, gauss_cov = optimize.curve_fit(su.gauss_3d, xyz, brightness, p0=[3., x_int, y_int, z_int, 1., 1., 0., 0., 0., 500.], bounds=([0., x_int-1, y_int-1, z_int-2, 0.5, 0.5, -np.inf, -np.inf, -np.inf, 0.], [np.inf, x_int+1, y_int+1, z_int+2, 10, 10., np.inf, np.inf, np.inf, np.inf]))
+            A, x, y, z, sig_xy, sig_z, mx, my, mz, b = gauss_params
+            # print(gauss_params)
+
+            if A / baseline > snr:
+                spots_filtered.append(spot)
+
+            if draw:
+                circ = plt.Circle((x-x_int+15, y-y_int+15), sig_xy, linewidth=2.5, edgecolor='r', facecolor='#00000000')
+                ax_im.add_artist(circ)
+                plot_circ = True
+            
+            spot_data.append([c] + list(spot[0:3]) + [A, A/baseline])
+
+        except RuntimeError:
+            # optimization failed
+            # print('WARNING: Gaussian fit failed. Moving to next spot...')
+            
+            if draw:
+                plot_circ = False
+
+        if draw:
+            anim = FuncAnimation(fig_im, update_z_spot, frames=np.clip(list(range(z_int-8, z_int+8)), 0, img_fish.shape[2]-1), interval=200, blit=False)
+            # plt.show()
+            anim.save('spot_' + str(c) + '_fit.gif', writer='imagemagick', fps=8, dpi=300)
+            plt.close()
+
+        del xyz[:]
+        del brightness[:]
+
+    return np.row_stack(spots_filtered), spot_data
+
+
+# deprecated ------------------------------------------------------------------#
+
+def find_spots(img_fish, sigma=1., t_spot=0.025, mask=None):
+    """DEPRECATED: Use `find_spots_snrfilter()` instead.
+    
+    Find FISH spots in a 3D microscopy image.
+
+    Find HCR-FISH spots in the FISH channel and return the positions of all 
+    detected spots using `skimage.feature.blob_log`.
+
+    Parameters:
+
+    img_fish: np.array, 3D
+        A 3D numpy array containing signal from the FISH channel.
+    
+
+    Optional:
+
+    sigma: float (default 1.0)
+        The standard deviation of the Gaussian kernel used for blurring before 
+        the Laplacian operation.  Increasing this value will preferentially 
+        detect larger spots.
+    
+    t_spot: float (default None)
+        Threshold to use for spot detection, from 0 to 1. Typical values for 
+        this parameter fall between 0.01 and 0.05. Lower this value to detect 
+        more spots.
+
+    mask: np.array, 3D (same dimensions as `img_fish`)
+        If provided, spots detected outside the mask will not be returned.
+    """
+
+    spots = feature.blob_log(su.normalize_image(img_fish), sigma, sigma, num_sigma=1, threshold=t_spot)
+    
+    if mask is not None:
+        spots_masked = []
+        for spot in spots:
+            spot_pos = tuple(spot[0:3].astype(int))
+            if mask[spot_pos]:
+                spots_masked.append(spot)
+        spots_masked = np.row_stack(spots_masked)
+        return spots_masked
+    else:
+        return spots
