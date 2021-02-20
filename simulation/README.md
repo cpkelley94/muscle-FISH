@@ -1,4 +1,4 @@
-# Simulation of RNA transport in muscle fibers
+# Markovian simulation of RNA transport in muscle fibers
 
 <img align="right" src="img/03-L-C-P.gif" alt="03-L-C-P" width=300 border="1">
 
@@ -28,10 +28,10 @@ python simulate_transport.py <image-name> <input-dir> <gene-name> <output-dir>
 ```
 
 where `input-dir` points to the folder containing the masks. Use the following optional arguments to adjust the simulation parameters:
-- `-s`, `--states`: String describing allowed motion states (0 = slow-diffusion, 1 = fast-diffusion, 2 = slow-directed, 3 = fast-directed). Default "023".
-- `-l`, `--length`: Length of simulation (hr). Default 1000.
+- `-s`, `--states`: String describing allowed motion states (0 = L, 1 = H, 2 = C, 3 = P). Default "023".
+- `-l`, `--length`: Length of simulation (hr). Default 1000. _We adjust this value according to the mRNA half-life of the studied gene. 1000 hr is a reasonable default for all but the most long-lived genes._
 - `-t`, `--timestep`: Length of timestep (s). Default 10. _We do not recommend changing this, as directed transport runs are modeled as single-timestep events._
-- `-a`, `--sample`: Number of timesteps between recorded output rows. Increase this number to conserve storage space. If 1, save in animation-friendly format. Default 1.
+- `-a`, `--sample`: Number of timesteps between recorded output rows. If 1, save in animation-friendly format. Default 1. _Increase this number to conserve storage space._
 - `-e`, `--events`: On-the-fly changes to simulation conditions, in the format `<t(hr)>:<states>,...`. eg. "200:0,500:023". Default "". _As an example, we use this to simulate microtubule depolymerization experiments._
 
 ## Examples
