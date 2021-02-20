@@ -38,8 +38,7 @@ where `input-dir` points to the folder containing the masks. Use the following o
 We simulated the motion of Polr2a mRNAs with different sets of allowed motion states:
 1. **{L} only.** In this configuration, we observe the distribution of RNAs in the cytoplasm if RNAs can move only by diffusion.
     ![01-low-mobility](img/01-low-mobility.gif)
-    <img src="img/01-low-mobility.gif" alt="01-low-mobility" width=500 border="1">
 2. **{L, C, P}.** Here, RNAs can transition between diffusion and directed transport states, according to the transition probabilities calculated from observations in our cell culture model.
-    <img src="img/03-L-C-P.gif" alt="03-L-C-P" width=500 border="1">
+    ![03-L-C-P](img/03-L-C-P.gif)
 3. **{H} only.** Upon careful observation in C2C12 myotubes, we believe that state H is an artifact caused by regions of immature sarcomere formation and incomplete differentiation. In this simulation, we investigate whether RNAs could reach near-uniform distribution in mature myofibers by diffusion alone if their diffusion coefficients resembled those observed in dividing cells, eg. fibroblasts.
-    <img src="img/02-high-mobility.gif" alt="02-high-mobility" width=500 border="1">
+    ![02-high-mobility](img/02-high-mobility.gif)
