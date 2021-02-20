@@ -1,3 +1,11 @@
+# python 2.7 (!)
+"""
+Estimate the degradation rate of mRNAs from each gene from time-course of FISH 
+spot detection data. Use non-linear least squares regression to fit an 
+exponential decay curve to spot density measurements.
+"""
+
+# plot formatting
 from matplotlib import rcParams
 rcParams['font.family'] = 'sans-serif'
 rcParams['font.size'] = 6
@@ -44,7 +52,6 @@ for j, p in enumerate(p_tables):
         reader = csv.reader(table_file)
         data = {gene_names[int(row[0])-1]:np.array(row[1:]).astype(float) for i, row in enumerate(reader) if i}
         data_by_time.append(data)
-# print(data_by_time)
 
 # reorganize
 mean_by_gene = defaultdict(list)
@@ -57,7 +64,6 @@ for j in range(len(times)):
         err_by_gene[g].append(np.std(data_by_time[j][g]))
 
 gene_list = sorted(list(genes))
-# print(gene_list)
 
 # curve_fit and make plots per gene
 genes_to_draw = ['Polr2a', 'Vcl', 'Dmd', 'Hist1h1c', 
@@ -67,8 +73,6 @@ curve_dict = {}
 fig, ax = plt.subplots(2, 4)
 fig.set_size_inches(8, 4.5)
 for i, g in enumerate(genes_to_draw):
-    # print(g)
-    #exp_params, exp_cov = curve_fit(expo, times, mean_by_gene[g], p0=[mean_by_gene[g][0], -np.log(2)/6.], sigma=err_by_gene[g], absolute_sigma=True)
     exp_params, exp_cov = curve_fit(expo, times, mean_by_gene[g], p0=[mean_by_gene[g][0], -np.log(2)/6.])
     curves.append([g, genes_to_draw[i]] + list(exp_params) + list(np.sqrt(np.diag(exp_cov))) + [np.log(2)/exp_params[1]])
     curve_dict.update({genes_to_draw[i]:exp_params})
@@ -81,21 +85,18 @@ for i, g in enumerate(genes_to_draw):
     ax[ij].plot(x_fit, y_fit, 'k-', lw=0.8)
     ax[ij].set_xlim([min(times)-2, max(times)+2])
     ax[ij].set_ylim(bottom=0)
-    # ax[ij].set_xlabel('Time (hr)')
-    # ax[ij].set_ylabel(r'Cytoplasmic RNA density $(\mathrm{spots} \; \mathrm{\mu m}^{-3})$')
     ax[ij].set_title(g)
     ax[ij].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
 
-    # Hide the right and top spines
+    # hide the right and top spines
     ax[ij].spines['right'].set_visible(False)
     ax[ij].spines['top'].set_visible(False)
 
-    # Only show ticks on the left and bottom spines
+    # only show ticks on the left and bottom spines
     ax[ij].yaxis.set_ticks_position('left')
     ax[ij].xaxis.set_ticks_position('bottom')
 
 plt.tight_layout()
-# plt.savefig('rna_decay_by_gene.png', dpi=300)
 plt.savefig('rna_decay_by_gene.pdf', dpi=300)
 plt.close()
 
@@ -127,8 +128,6 @@ if p_noco is not None:
     fig, ax = plt.subplots()
     fig.set_size_inches(4,4)
     ax.plot(half_lives, fracs_expt, 'k.')
-    # ax.set_aspect('equal')
-    # ax.set_xlim([0,1])
     ax.set_ylim([0,1])
     ax.set_xlabel('Half-life (hr)')
     ax.set_ylabel('Fraction of mRNAs 5+ um away from nucleus\nremaining after nocodazole treatment')
@@ -149,7 +148,6 @@ if p_noco is not None:
     ax.plot(fracs_theo, fracs_expt, 'k.')
     for i, g in enumerate(genes_in_both):
         ax.annotate(g, (fracs_theo[i], fracs_expt[i]))
-    # ax.plot(x_lin, y_lin, 'k-', lw=0.8)
     ax.plot([0,1], [0,1], '--', c='#bbbbbb', lw=0.8, zorder=0)
     ax.set_aspect('equal')
     ax.set_xlim([0,1])
@@ -204,7 +202,6 @@ if p_dens is not None:
     ax.plot(dens_theo, dens_expt, 'k.')
     for i, g in enumerate(genes_in_both):
         ax.annotate(g, (dens_theo[i], dens_expt[i]))
-    # ax.plot(x_lin, y_lin, 'k-', lw=0.8)
     ax.plot([0,1], [0,1], '--', c='#bbbbbb', lw=0.8, zorder=0)
     ax.set_aspect('equal')
     ax.set_xlim([0,1])
@@ -221,42 +218,3 @@ if p_dens is not None:
     # statistics
     corr, p_val = pearsonr(dens_theo, dens_expt)
     print corr
-
-    # for name in gene_names:
-    #     if name in noco_data and name != 'Actn2':
-    #         d_theo = dens_data[name][0]*expo(18., 1., curve_dict[name][1])
-    #         dens_theo.append(d_theo)
-    #         dens_expt.append(dens_data[name][2])
-    #         genes_in_both.append(name)
-
-    # # plot experimental depletion vs. predicted
-    # slope, intercept, r_val, p_val, sem = linregress(dens_theo, dens_expt)
-    # x_lin = np.logspace(-4, 0, num=2, endpoint=True)
-    # y_lin = slope*x_lin + intercept
-
-    # print slope, intercept, r_val, p_val, sem
-
-    # fig, ax = plt.subplots()
-    # fig.set_size_inches(4,4)
-    # ax.plot(dens_theo, dens_expt, 'k.')
-    # for i, g in enumerate(genes_in_both):
-    #     ax.annotate(g, (dens_theo[i], dens_expt[i]))
-    # # ax.plot(x_lin, y_lin, 'k-', lw=0.8)
-    # ax.plot([0,1], [0,1], '--', c='#bbbbbb', lw=0.8, zorder=0)
-    # ax.set_aspect('equal')
-    # ax.set_xscale('log')
-    # ax.set_yscale('log')
-    # ax.set_xlim([1E-4,1])
-    # ax.set_ylim([1E-4,1])
-    # # ax.set_xticks([0, 0.25, 0.5, 0.75, 1])
-    # # ax.set_yticks([0, 0.25, 0.5, 0.75, 1])
-    # ax.set_xlabel('Predicted cytoplasmic density (spots/um^3)')
-    # ax.set_ylabel('Observed cytoplasmic density (spots/um^3)')
-    # plt.tight_layout()
-    # plt.savefig('density_vs_predicted.png', dpi=300)
-    # plt.savefig('density_vs_predicted.pdf', dpi=300)
-    # plt.close()
-
-    # # statistics
-    # corr, p_val = pearsonr(dens_theo, dens_expt)
-    # print corr
