@@ -1,11 +1,7 @@
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg')  # for plotting on cluster
 
-from copy import deepcopy
-from scipy import misc as scimisc
-from scipy.interpolate import interpn
-from scipy.ndimage.morphology import distance_transform_edt
-from scipy.optimize import minimize, curve_fit
+from scipy.optimize import curve_fit
 from skimage import morphology
 from matplotlib import pyplot as plt
 import argparse
@@ -17,7 +13,6 @@ import os
 import random
 import scipy.stats as ss
 import tifffile
-import trimesh
 
 # custom libraries
 import scope_utils3 as su
