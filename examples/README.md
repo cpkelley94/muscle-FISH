@@ -1,6 +1,6 @@
 # Example HCR-FISH analysis
 
-This basic example illustrates how we use our general Python pipeline to analyze 3D confocal microscopy images of myofibers. In this fiber, we used HCR-FISH to label mRNAs from the vinculin gene (Vcl), and we stained with DAPI to label nuclei:
+This basic example illustrates how we use our general Python pipeline to analyze 3D confocal microscopy images of myofibers. In this fiber, we used HCR-FISH to label mRNAs from the vinculin gene (Vcl), and we stained with DAPI to label nuclei.
 
 <img src="vcl_channels.gif" alt="vcl_channels">
 
@@ -15,3 +15,7 @@ We next segment the nuclei by applying [Otsu's method](https://scikit-image.org/
 Once the regions have been defined, we use the [Laplacian of Gaussian approach](https://scikit-image.org/docs/dev/auto_examples/features_detection/plot_blob.html) to detect HCR-FISH spots. We also apply a signal-to-noise filter to eliminate low-intensity spots, reducing the number of false positive spot calls.
 
 <img src="vcl_spot_detection.gif" alt="vcl_spot_detection">
+
+At this point, using the region masks, we can assign spots to nuclear, perinuclear, and cytoplasmic compartments.
+
+<img src="vcl_region_assignment.gif" alt="vcl_region_assignment">
