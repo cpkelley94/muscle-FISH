@@ -1,5 +1,5 @@
 """
-scope_utils3.py            Chase Kelley             modified 03/01/2020
+scope_utils3.py            Chase Kelley             modified 02/20/2021
 ----------------------------------------------------------------------
 A personal library of useful tools to visualize, analyze, and interpret \
 microscopy imaging data.  Many functions in this library are simple \
@@ -221,28 +221,11 @@ def detect_local_minima(arr):
     Returns a boolean mask of the troughs (i.e. 1 when
     the pixel's value is the neighborhood maximum, 0 otherwise)
     """
-    # define an connected neighborhood
-    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.morphology.html#generate_binary_structure
+
     neighborhood = ndimage.morphology.generate_binary_structure(len(arr.shape),2)
-    # apply the local minimum filter; all locations of minimum value
-    # in their neighborhood are set to 1
-    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.filters.html#minimum_filter
     local_min = (ndimage.filters.minimum_filter(arr, footprint=neighborhood)==arr)
-    # local_min is a mask that contains the peaks we are
-    # looking for, but also the background.
-    # In order to isolate the peaks we must remove the background from the mask.
-    #
-    # we create the mask of the background
     background = (arr==0)
-    #
-    # a little technicality: we must erode the background in order to
-    # successfully subtract it from local_min, otherwise a line will
-    # appear along the background border (artifact of the local minimum filter)
-    # http://www.scipy.org/doc/api_docs/SciPy.ndimage.morphology.html#binary_erosion
     eroded_background = ndimage.morphology.binary_erosion(background, structure=neighborhood, border_value=1)
-    #
-    # we obtain the final mask, containing only peaks,
-    # by removing the background from the local_min mask
     detected_minima = local_min ^ eroded_background
     return np.where(detected_minima)
 
@@ -313,7 +296,6 @@ def autofocus_zstack(image, plot_opt=False):
     print('Optimized z-plane for autofocus: ' + str(np.argmax(var_lap_over_mean_sq)))
 
     return np.argmax(var_lap_over_mean_sq)
-
 
 def deconvolve_widefield(img, metadata, ex_wavelen, em_wavelen, psfsize_xy=50, psfsize_z=25, bit_depth=16, plot_psf=False, **kwargs):
     """
@@ -403,45 +385,6 @@ def normalize_image(image, vmin=0, vmax=1):
     """
     return np.interp(image, (np.min(image), np.max(image)), (vmin, vmax))
 
-def optimize_threshold(image_log, plot_opt=False):
-    """
-    Find the optimal threshold for FISH spot detection in the Laplacian of \
-    Gaussian filtered image.  This is accomplished by testing many possible \
-    threshold values, identifying the number of detected spots for each, \
-    and choosing the threshold that corresponds to the inflection point of the \
-    plateau.  This technique is described in more detail in various publications \
-    by the Arjun Raj lab.  Return the optimal threshold value.
-    """
-    # find the threshold range
-    t_max = np.max(image_log)
-    t_min = np.min(image_log)
-    t_range = np.linspace(t_min, t_max, num=100)
-
-    # for each threshold, count the number of spots detected
-    num_spots = []
-    for t in t_range:
-        image_bin = np.where(image_log < t, 1, 0)
-        labels, n = ndimage.label(image_bin)
-        num_spots.append(n)
-
-    if plot_opt:
-        plt.plot(t_range, num_spots, 'k-', linewidth=0.8)
-        # plt.show()
-
-    dn_dt = np.gradient(num_spots, t_range[1]-t_range[0])
-
-    if plot_opt:
-        plt.plot(t_range, dn_dt, 'b-', linewidth=0.8)
-        # plt.show()
-
-    # find optimal threshold
-    inflection_pts = argrelextrema(dn_dt, np.less)[0]
-    spike = np.argmax(num_spots)
-    t_opt = t_range[[pt for pt in inflection_pts if pt < spike][-1]]
-    print('Optimal threshold value for FISH LoG: ' + str(t_opt))
-
-    return t_opt
-
 def optimize_threshold_blob_log(image, min_sigma=1., max_sigma=50., num_sigma=10, tmin=0., tmax=0.1, num=20, plot_opt=False):
     """
     Find the optimal threshold for FISH spot detection in the Laplacian of \
@@ -477,6 +420,7 @@ def optimize_threshold_blob_log(image, min_sigma=1., max_sigma=50., num_sigma=10
     print('Optimal threshold value for blob_log: ' + str(t_opt))
 
     return t_opt
+
 
 # mathematical constructions and optimization functions -----------------------#
 
@@ -527,12 +471,12 @@ def get_czi_metadata(p_czi, p_out=None, stdout=False):
     return meta
 
 def wavelength_to_rgb(wavelength, gamma=0.8):
-    '''This converts a given wavelength of light to an
-    approximate RGB color value. The wavelength must be given
-    in nanometers in the range from 380 nm through 750 nm
-    (789 THz through 400 THz).
+    '''
+    Convert a given wavelength of light to an approximate RGB color value. 
+    The wavelength must be given in nanometers in the range from 380 nm through 
+    750 nm (789 THz through 400 THz).
 
-    Based on code by Dan Bruton
+    Based on code by Dan Bruton:
     http://www.physics.sfasu.edu/astro/color/spectra.html
     '''
 
