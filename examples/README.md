@@ -31,4 +31,4 @@ sarcoplasmic: 166 spots, 0.006026747805161343 spots/um^3, 69.74789915966386% of 
 
 With information from multiple images for each gene, we statistically test whether mRNAs from certain genes are enriched in a particular region.
 
-We applied these basic techniques to analyze all images in our study. To address additional questions, we have also implemented methods to segment cytoskeletal structures from IF, detect intersections between cytoskeletal filaments, measure distances between objects, measure FISH spot intensities, and simulate motion of RNAs in muscle fibers. For more details, check out our manuscript (coming soon).
+We applied these basic techniques to analyze all images in our study. To address additional questions, we have also implemented methods to segment cytoskeletal structures from IF, detect intersections between cytoskeletal filaments, measure distances between objects, measure FISH spot intensities, and simulate motion of RNAs in muscle fibers. For more details, check out our [manuscript](https://www.biorxiv.org/content/10.1101/2021.02.26.433059v1).
