@@ -15,3 +15,5 @@ All code used in this study for image analysis and RNA transport simulation is w
 - [Simulation of RNA transport](simulation)
 - [Examples](examples)
 - [Modules](modules)
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5484424.svg)](https://doi.org/10.5281/zenodo.5484424)
